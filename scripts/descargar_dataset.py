@@ -12,7 +12,7 @@ CARPETA_DESTINO = RAIZ / "data" / "01_raw"
 
 # ==========================================================================
 # PEGAR AQUÍ TU API KEY DE ROBOFLOW ANTES DE EJECUTAR (no subir con la clave puesta)
-API_KEY = "O7O8l771rvehPAYaFpgj"
+API_KEY = ""
 # ==========================================================================
 
 # Dataset: https://universe.roboflow.com/apple-detection-ostsn/apple-detection-on-split-images/dataset/5
