@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 2
+names: ['apple', 'damaged_apple']
+
+roboflow:
+  workspace: arfiani-nur-sayidah-9lizr
+  project: apple-sorting-2bfhk
+  version: 2
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/arfiani-nur-sayidah-9lizr/apple-sorting-2bfhk/dataset/2
