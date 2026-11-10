@@ -1,0 +1,22 @@
+# Estándar de calibre según norma exportación (diámetro en mm)
+calibre_min_mm: 65
+calibre_max_mm: 80
+
+# Umbrales de color HSV para manzana madura (roja)
+hue_min: 0
+hue_max: 15
+saturacion_min: 120
+
+# Fuente de video: 0 = webcam, o ruta a archivo de video
+fuente_video: 0
+
+# Tamaño de imagen para YOLO (px, lado mayor); 416 en vez de 640: menos peso, sigue siendo RGB
+imgsz: 416
+
+# Factor de calibración (px por mm). Recalcular con
+# src.vision.calibrador.calibrar_escala(ancho_px, diametro_real_mm) usando un patrón conocido.
+px_por_mm: 3.2
+
+# Bucket S3 (dejar vacío para modo local)
+s3_bucket: ""
+s3_prefix: "apple-vision/"

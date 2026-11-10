@@ -1,0 +1,17 @@
+ultralytics
+opencv-python
+pandas
+numpy
+scikit-learn
+xgboost
+optuna
+mlflow
+boto3
+matplotlib
+seaborn
+jupyter
+pyyaml
+python-dotenv
+joblib
+pillow
+roboflow

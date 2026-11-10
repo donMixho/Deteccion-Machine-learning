@@ -1,0 +1,36 @@
+# Entorno
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Credenciales (nunca versionar)
+.env
+
+# Datos y modelos pesados
+data/01_raw/*
+data/02_processed/*
+data/03_features/*
+models/*
+mlruns/*
+*.pt
+*.pkl
+
+# Mantener carpetas vacías
+!.gitkeep
+
+# Salidas generadas
+images/*
+reports/*
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generados por entrenamiento y MLflow
+mlflow.db
+entrenamiento.log
+runs/
