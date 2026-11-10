@@ -1,0 +1,16 @@
+# Dataset conveyor_apple_sorting (Roboflow, Public Domain) - clases unificadas
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 1
+names: ['apple']
+
+roboflow:
+  workspace: fruitgradechecking
+  project: conveyor_apple_sorting
+  version: 1
+  license: Public Domain
+  url: https://universe.roboflow.com/fruitgradechecking/conveyor_apple_sorting/dataset/1
+  nota: conveyor_apple_sorting (apple_a -> apple) + apple-sorting-2bfhk v2 (prefijo as_, damaged_apple -> apple)
+  fuente_2: https://universe.roboflow.com/arfiani-nur-sayidah-9lizr/apple-sorting-2bfhk (CC BY 4.0)

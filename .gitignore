@@ -9,7 +9,6 @@ __pycache__/
 .env
 
 # Datos y modelos pesados
-data/01_raw/*
 data/02_processed/*
 data/03_features/*
 models/*
@@ -21,7 +20,6 @@ mlruns/*
 !.gitkeep
 
 # Salidas generadas
-images/*
 reports/*
 
 # IDE / SO
