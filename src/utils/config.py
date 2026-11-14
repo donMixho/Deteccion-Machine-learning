@@ -1,4 +1,5 @@
 """Carga de parámetros desde config.yaml."""
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
@@ -21,6 +22,7 @@ class Config:
     imgsz: int
     s3_bucket: str
     s3_prefix: str
+    max_pct_defecto: float = 12.0
 
 
 def cargar_config(ruta: Path = CONFIG_PATH) -> Config:
@@ -37,4 +39,19 @@ def cargar_config(ruta: Path = CONFIG_PATH) -> Config:
         imgsz=int(datos.get("imgsz", 640)),
         s3_bucket=str(datos.get("s3_bucket") or ""),
         s3_prefix=str(datos.get("s3_prefix") or ""),
+        max_pct_defecto=float(datos.get("max_pct_defecto", 12.0)),
     )
+
+
+def guardar_px_por_mm(valor: float, ruta: Path = CONFIG_PATH) -> None:
+    """Reescribe solo la línea `px_por_mm:` de config.yaml (conserva comentarios y orden)."""
+    if valor <= 0:
+        raise ValueError("px_por_mm debe ser > 0")
+    with open(ruta, "r", encoding="utf-8") as f:
+        texto = f.read()
+    linea = f"px_por_mm: {valor:.4f}"
+    nuevo, n = re.subn(r"(?m)^px_por_mm:.*$", linea, texto)
+    if n == 0:
+        nuevo = texto.rstrip("\n") + "\n" + linea + "\n"
+    with open(ruta, "w", encoding="utf-8", newline="\n") as f:
+        f.write(nuevo)
