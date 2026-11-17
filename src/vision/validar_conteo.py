@@ -17,7 +17,7 @@ import csv
 from pathlib import Path
 
 from src.utils.config import RAIZ, cargar_config
-from src.vision.detector import procesar
+from src.vision.detector import CONF_DEFAULT, procesar
 
 MODELO_DEFAULT = str(RAIZ / "models" / "best.pt")
 CSV_TMP = RAIZ / "data" / "02_processed" / "validacion_tmp.csv"
@@ -63,7 +63,7 @@ def main() -> None:
     p.add_argument("--modelo", default=MODELO_DEFAULT)
     p.add_argument("--lineas", default="0.8",
                    help="Posiciones de la línea separadas por coma (fracción del ancho)")
-    p.add_argument("--conf", type=float, default=0.25)
+    p.add_argument("--conf", type=float, default=CONF_DEFAULT)
     p.add_argument("--salida", default=str(CSV_INFORME))
     a = p.parse_args()
 
