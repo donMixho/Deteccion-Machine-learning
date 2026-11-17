@@ -26,6 +26,8 @@ from src.vision.panel import dibujar_caja, dibujar_linea_conteo, dibujar_panel
 
 MODELO_DEFAULT = "yolo26n.pt"
 CONF_DEFAULT = 0.18   # confianza mínima: más baja capta manzanas inclinadas o parcialmente giradas
+CONF_FOTO_DEFAULT = 0.35  # Seleccionado con images/valid; ajustable desde el panel.
+IOU_FOTO_DEFAULT = 0.35
 IOU_NMS = 0.45        # NMS más estricto: una sola caja por manzana aunque estén juntas en el centro
 TRACKER_CFG = RAIZ / "config" / "bytetrack_apple.yaml"   # ByteTrack con track_buffer=60
 CSV_SALIDA = RAIZ / "data" / "02_processed" / "metricas.csv"
@@ -284,8 +286,58 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
             "pudricion": len(por_pudricion)}
 
 
+def predecir_foto(yolo, frame, cfg, conf=CONF_FOTO_DEFAULT,
+                  iou=IOU_FOTO_DEFAULT, detalle=False):
+    """Inferencia global y, opcionalmente, nueve zonas con solapamiento.
+
+    Las cajas se llevan a coordenadas de la foto y se fusionan con NMS
+    por clase. No se suman los conteos de las zonas.
+    """
+    resultado = yolo.predict(frame, imgsz=cfg.imgsz, conf=conf, iou=iou,
+                             verbose=False)[0]
+    if not detalle or min(frame.shape[:2]) < 16:
+        return resultado
+
+    import torch
+    from torchvision.ops import batched_nms
+
+    alto, ancho = frame.shape[:2]
+    ancho_zona, alto_zona = round(ancho * 0.45), round(alto * 0.45)
+    xs = sorted({0, (ancho - ancho_zona) // 2, ancho - ancho_zona})
+    ys = sorted({0, (alto - alto_zona) // 2, alto - alto_zona})
+    candidatas = [resultado.boxes.data]
+    for y in ys:
+        for x in xs:
+            zona = frame[y:y + alto_zona, x:x + ancho_zona]
+            res = yolo.predict(zona, imgsz=cfg.imgsz, conf=conf, iou=iou,
+                               verbose=False)[0]
+            cajas = res.boxes.data.clone()
+            # Una caja cortada por un borde interno puede duplicar un objeto.
+            validas = torch.ones(len(cajas), dtype=torch.bool, device=cajas.device)
+            if x > 0:
+                validas &= cajas[:, 0] > 2
+            if y > 0:
+                validas &= cajas[:, 1] > 2
+            if x + ancho_zona < ancho:
+                validas &= cajas[:, 2] < ancho_zona - 2
+            if y + alto_zona < alto:
+                validas &= cajas[:, 3] < alto_zona - 2
+            cajas = cajas[validas]
+            cajas[:, [0, 2]] += x
+            cajas[:, [1, 3]] += y
+            candidatas.append(cajas)
+
+    cajas = torch.cat(candidatas, dim=0)
+    if len(cajas):
+        indices = batched_nms(cajas[:, :4], cajas[:, 4], cajas[:, 5].long(), iou)
+        cajas = cajas[indices]
+    resultado.update(boxes=cajas)
+    return resultado
+
+
 def procesar_imagen(ruta: str, modelo: str, cfg: Config, mostrar: bool = True,
-                    lote: str = "Foto", guardar: str = None, conf: float = CONF_DEFAULT) -> dict:
+                    lote: str = "Foto", guardar: str = None, conf: float = CONF_FOTO_DEFAULT,
+                    iou: float = IOU_FOTO_DEFAULT, detalle: bool = False) -> dict:
     """Cuenta las manzanas de UNA foto. Sin tracking: cada detección es una manzana."""
     # imdecode + fromfile: cv2.imread falla con rutas con tildes o ñ en Windows
     datos = np.fromfile(ruta, dtype=np.uint8)
@@ -294,7 +346,7 @@ def procesar_imagen(ruta: str, modelo: str, cfg: Config, mostrar: bool = True,
         raise RuntimeError(f"No se pudo leer la imagen: {ruta}")
 
     yolo = YOLO(modelo)
-    res = yolo.predict(frame, imgsz=cfg.imgsz, conf=conf, iou=IOU_NMS, verbose=False)[0]
+    res = predecir_foto(yolo, frame, cfg, conf=conf, iou=iou, detalle=detalle)
     conteo, dibujos, pudricion = Counter(), [], 0
     for n, (caja, cls) in enumerate(zip(res.boxes.xyxy.cpu().numpy(),
                                         res.boxes.cls.int().cpu().tolist()), start=1):
@@ -346,17 +398,26 @@ def main() -> None:
     parser.add_argument("--linea", type=float, default=0.8,
                         help="Posición de la línea de conteo, como fracción del ancho (0-1)")
     parser.add_argument("--guardar", default=None, help="Guardar el video con el panel (.mp4)")
-    parser.add_argument("--conf", type=float, default=CONF_DEFAULT, help="Confianza mínima de detección")
+    parser.add_argument("--conf", type=float, default=None,
+                        help="Confianza minima (foto: 0.35; video: 0.18)")
+    parser.add_argument("--iou", type=float, default=None,
+                        help="Umbral de solapamiento para fotos (por defecto 0.35)")
+    parser.add_argument("--detalle-foto", action="store_true",
+                        help="Buscar manzanas pequenas en zonas solapadas (solo fotos)")
     args = parser.parse_args()
 
     cfg = cargar_config()
     if args.foto:
         procesar_imagen(args.foto, args.modelo, cfg, mostrar=not args.sin_ventana, lote=args.lote,
-                        guardar=args.guardar, conf=args.conf)
+                        guardar=args.guardar,
+                        conf=CONF_FOTO_DEFAULT if args.conf is None else args.conf,
+                        iou=IOU_FOTO_DEFAULT if args.iou is None else args.iou,
+                        detalle=args.detalle_foto)
         return
     fuente = args.video if args.video is not None else cfg.fuente_video
     procesar(fuente, args.modelo, cfg, mostrar=not args.sin_ventana, lote=args.lote,
-             linea=args.linea, guardar=args.guardar, conf=args.conf)
+             linea=args.linea, guardar=args.guardar,
+             conf=CONF_DEFAULT if args.conf is None else args.conf)
 
 
 if __name__ == "__main__":

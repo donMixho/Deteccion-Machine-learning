@@ -14,7 +14,7 @@ import numpy as np
 
 from src.utils.config import RAIZ, cargar_config, guardar_px_por_mm
 from src.vision.calibrador import calibrar_escala
-from src.vision.detector import CONF_DEFAULT, medir_referencia, procesar, procesar_imagen
+from src.vision.detector import CONF_DEFAULT, CONF_FOTO_DEFAULT, medir_referencia, procesar, procesar_imagen
 
 MODELO = RAIZ / "models" / "best.pt"
 CARPETA_REPORTES = RAIZ / "reports"
@@ -68,12 +68,21 @@ class App:
         self.linea = tk.IntVar(value=80)
         # Sensibilidad = 100 - confianza mínima: más alto detecta más (incluye manzanas inclinadas)
         self.sensibilidad = tk.IntVar(value=100 - round(CONF_DEFAULT * 100))
+        self.detalle_foto = tk.BooleanVar(value=False)
         self.guardar = tk.BooleanVar(value=False)
         self.estado = tk.StringVar(value="Listo para iniciar")
         self.aviso_fuente = tk.StringVar(value="")
         self.texto_escala = tk.StringVar(value="")
         self.resultado = {k: tk.StringVar(value="—")
                           for k in ("total", "good", "detalle", "no_pasa", "pudricion", "ids")}
+
+        self._fuente_anterior = self.fuente.get()
+        self._sensibilidades = {
+            "camara": 100 - round(CONF_DEFAULT * 100),
+            "video": 100 - round(CONF_DEFAULT * 100),
+            "foto": 100 - round(CONF_FOTO_DEFAULT * 100),
+        }
+        self.fuente.trace_add("write", self._cambiar_fuente)
 
         self._estilos()
         self._construir()
@@ -181,6 +190,9 @@ class App:
                      "pero puede marcar objetos que no son fruta.\nMás bajo = solo detecciones muy seguras. "
                      f"Recomendado: {100 - round(CONF_DEFAULT * 100)} %.")
 
+        ttk.Checkbutton(t2, text="Buscar manzanas peque\u00f1as (solo fotos; tarda m\u00e1s)",
+                        variable=self.detalle_foto).pack(anchor="w", pady=(4, 0))
+
         fila_cal = ttk.Frame(t2, style="Card.TFrame")
         fila_cal.pack(fill="x", pady=(10, 4))
         ttk.Label(fila_cal, text="Escala de la cámara", width=30).pack(side="left")
@@ -234,11 +246,21 @@ class App:
                          font=("Segoe UI", 10, "bold"))
         valor.pack(side="right")
         escala = ttk.Scale(fila, from_=minimo, to=maximo, variable=variable, orient="horizontal",
-                           command=lambda v: (variable.set(int(float(v))), valor.config(text=f"{int(float(v))} %")))
+                           command=lambda v: variable.set(int(float(v))))
+        variable.trace_add("write", lambda *_: valor.config(text=f"{variable.get()} %"))
         escala.pack(side="left", fill="x", expand=True, padx=8)
         Tooltip(escala, ayuda)
 
     # ---------- estado visual ----------
+    def _cambiar_fuente(self, *_args) -> None:
+        """Conserva la sensibilidad elegida para cada tipo de entrada."""
+        nueva = self.fuente.get()
+        if nueva == self._fuente_anterior:
+            return
+        self._sensibilidades[self._fuente_anterior] = self.sensibilidad.get()
+        self.sensibilidad.set(self._sensibilidades[nueva])
+        self._fuente_anterior = nueva
+
     def _actualizar_aviso(self) -> None:
         fuente = self.fuente.get()
         ruta = {"video": self.ruta_video.get(), "foto": self.ruta_foto.get()}.get(fuente)
@@ -459,7 +481,7 @@ class App:
         self.root.update_idletasks()
         try:
             r = procesar_imagen(ruta, str(MODELO), self.cfg, mostrar=True, lote=self.lote.get() or "Foto",
-                                guardar=guardar, conf=self._conf())
+                                guardar=guardar, conf=self._conf(), detalle=self.detalle_foto.get())
         except Exception as e:  # noqa: BLE001 - se muestra al usuario
             self.estado.set("Error al procesar")
             messagebox.showerror("Error", str(e))
