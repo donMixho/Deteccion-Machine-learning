@@ -7,15 +7,19 @@ hue_min: 0
 hue_max: 15
 saturacion_min: 120
 
+# Pudrición / daño: % máximo de píxeles oscuros (V < 75) o marrones apagados
+# (H 10-25 y S < 110) dentro de la fruta. Sobre este valor la fruta es "No pasa".
+max_pct_defecto: 12.0
+
 # Fuente de video: 0 = webcam, o ruta a archivo de video
 fuente_video: 0
 
 # Tamaño de imagen para YOLO (px, lado mayor); 416 en vez de 640: menos peso, sigue siendo RGB
 imgsz: 416
 
-# Factor de calibración (px por mm). Recalcular con
-# src.vision.calibrador.calibrar_escala(ancho_px, diametro_real_mm) usando un patrón conocido.
-px_por_mm: 3.2
+# Factor de calibración (px por mm). Recalcular desde la app (botón «Calibrar cámara / escala»)
+# o con src.vision.calibrador.calibrar_escala(ancho_px, diametro_real_mm) usando un patrón conocido.
+px_por_mm: 5.8458
 
 # Bucket S3 (dejar vacío para modo local)
 s3_bucket: ""

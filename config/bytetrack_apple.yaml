@@ -1,0 +1,9 @@
+# ByteTrack ajustado para manzanas en cinta (AppleVision Chile).
+# Basado en ultralytics/cfg/trackers/bytetrack.yaml. Lo usa src/vision/detector.py.
+tracker_type: bytetrack
+track_high_thresh: 0.20   # 1.ª asociación (por defecto 0.25); acompaña a conf=0.18 de la inferencia
+track_low_thresh: 0.10    # 2.ª asociación con detecciones de baja confianza (oclusión parcial)
+new_track_thresh: 0.25    # confianza mínima para crear un ID nuevo (evita IDs fantasma = conteo doble)
+track_buffer: 60          # frames que un ID sobrevive sin verse (por defecto 30): no se pierde al cruzarse
+match_thresh: 0.75        # umbral de coincidencia (costo 1-IoU); por defecto 0.8
+fuse_score: True

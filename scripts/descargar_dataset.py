@@ -11,8 +11,7 @@ from roboflow import Roboflow
 RAIZ = Path(__file__).resolve().parents[1]
 CARPETA_DESTINO = RAIZ / "data" / "01_raw"
 
-# La clave se lee de la variable de entorno ROBOFLOW_API_KEY (nunca escribirla en el código).
-API_KEY = os.environ.get("ROBOFLOW_API_KEY", "")
+
 
 # Dataset: https://universe.roboflow.com/apple-detection-ostsn/apple-detection-on-split-images/dataset/5
 WORKSPACE = "apple-detection-ostsn"
