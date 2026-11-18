@@ -12,7 +12,8 @@ DETALLE = "detalle"
 NO_PASA = "no_pasa"
 
 # Clases YOLO que indican defecto directo (ajustar según las clases del modelo entrenado)
-CLASES_DEFECTO = {"rotten", "defect", "damaged"}
+CLASES_DEFECTO = {"rotten", "defect", "damaged", "damaged_apple"}
+MOTIVO_PUDRICION = "Pudrición / Daño detectado"
 
 # Margen (mm) fuera de calibre tolerado como "detalle" antes de pasar a "no_pasa"
 MARGEN_CALIBRE_MM = 3.0
@@ -30,13 +31,23 @@ def color_ok(hue: float, saturacion: float, cfg: Config) -> bool:
     return en_rango and saturacion >= cfg.saturacion_min
 
 
+def tiene_pudricion(pct_defecto: float, cfg: Config) -> bool:
+    """True si el % de píxeles oscuros/marrones dentro de la fruta supera `max_pct_defecto`."""
+    return pct_defecto > cfg.max_pct_defecto
+
+
 def clasificar(diametro_mm: float, hue: float, saturacion: float,
-               aspecto: float, clase_yolo: str, cfg: Config, usar_calibre: bool = True) -> str:
+               aspecto: float, clase_yolo: str, cfg: Config, usar_calibre: bool = True,
+               pct_defecto: float = 0.0) -> str:
     """Devuelve 'good', 'detalle' o 'no_pasa'.
 
     `usar_calibre=False` ignora el diámetro: en una foto cualquiera no se conoce la escala px/mm.
+    `pct_defecto` (% de manchas oscuras/marrones en la fruta): sobre `cfg.max_pct_defecto`
+    la fruta es 'no_pasa' aunque calibre y forma sean normales (pudrición / daño).
     """
     if str(clase_yolo).lower() in CLASES_DEFECTO:
+        return NO_PASA
+    if tiene_pudricion(pct_defecto, cfg):
         return NO_PASA
 
     # Calibre
