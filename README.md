@@ -173,3 +173,19 @@ Ver `proyecto_manzanas_ml.md`. No clasifica variedad, no calcula peso real, no c
 ## Licencias
 YOLO (ultralytics): AGPL-3.0, uso académico.
 Datos: Public Domain (dataset 1) y CC BY 4.0 (dataset 2, crédito a su autor en Roboflow).
+
+
+## Mejora y validación del conteo en fotos
+
+El modo foto usa sensibilidad inicial de 65 % y NMS IoU 0.35. Se puede ajustar
+la sensibilidad desde el panel. Ver [VALIDACION_FOTOS.md](VALIDACION_FOTOS.md)
+para resultados, limitaciones, créditos de fotos externas y comandos reproducibles.
+
+```bash
+python -m src.vision.validar_fotos --split test --salida reports/validacion_fotos_test.csv
+```
+
+La opción **Buscar manzanas pequeñas (solo fotos; tarda más)** analiza zonas
+solapadas y fusiona las cajas. Se activa manualmente: recupera algunas manzanas
+omitidas, pero puede aumentar el exceso de conteo. Ver las métricas y el caso
+de prueba en VALIDACION_FOTOS.md.

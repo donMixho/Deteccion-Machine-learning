@@ -19,7 +19,7 @@ imgsz: 416
 
 # Factor de calibración (px por mm). Recalcular desde la app (botón «Calibrar cámara / escala»)
 # o con src.vision.calibrador.calibrar_escala(ancho_px, diametro_real_mm) usando un patrón conocido.
-px_por_mm: 3.2
+px_por_mm: 5.8458
 
 # Bucket S3 (dejar vacío para modo local)
 s3_bucket: ""
