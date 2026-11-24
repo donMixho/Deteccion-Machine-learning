@@ -1,0 +1,71 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Recibir lote · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div>
+    <h1>Recibir lote</h1>
+    <p>Registra la fruta que entrega el productor y sube la foto o el video de la línea. El modelo la cuenta y la clasifica.</p>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" data-subida>
+  {{ m.csrf() }}
+  <div class="rejilla rejilla-2-1">
+    <div class="pila">
+      <section class="tarjeta">
+        <div class="tarjeta-cab"><div><h2>1 · Datos del lote</h2><p>Quién entrega, qué variedad y en qué línea se procesa.</p></div></div>
+        <div class="campos">
+          <div class="campo">
+            <label for="productor_id">Productor</label>
+            <select id="productor_id" name="productor_id" required>
+              <option value="">Elige el productor…</option>
+              {% for p in productores %}<option value="{{ p.id }}"{% if form.get('productor_id') == p.id|string %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="campo">
+            <label for="exportadora_id">Exportadora de destino</label>
+            <select id="exportadora_id" name="exportadora_id">
+              <option value="">Sin asignar</option>
+              {% for e in exportadoras %}<option value="{{ e.id }}"{% if form.get('exportadora_id') == e.id|string %} selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
+            </select>
+            <div class="ayuda">Verá el lote cuando el jefe de planta lo apruebe.</div>
+          </div>
+          <div class="campo">
+            <label for="variedad">Variedad</label>
+            <select id="variedad" name="variedad" required>
+              <option value="">Elige la variedad…</option>
+              {% for v in variedades %}<option{% if form.get('variedad') == v %} selected{% endif %}>{{ v }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="campo">
+            <label for="bins">Bins</label>
+            <input id="bins" type="number" name="bins" min="0" max="10000" value="{{ form.get('bins', '') }}" placeholder="Ej.: 18">
+          </div>
+          <div class="campo">
+            <label for="linea">Línea de proceso</label>
+            <select id="linea" name="linea">{% for n in range(1, lineas + 1) %}<option value="{{ n }}"{% if form.get('linea') == n|string %} selected{% endif %}>Línea {{ n }}</option>{% endfor %}</select>
+          </div>
+        </div>
+      </section>
+      <section class="tarjeta">
+        <div class="tarjeta-cab"><div><h2>2 · Foto o video de la línea</h2><p>Opcional ahora: también puedes subirlo después desde el detalle del lote.</p></div></div>
+        <div class="formulario">{{ ml.campos_archivo(niveles, linea_defecto, permite_video=PLANES[usuario.empresa_plan].video, requerido=false) }}</div>
+      </section>
+      <div><button class="boton boton-primario boton-grande" type="submit">{{ icono('check') }}Recibir lote y analizar</button></div>
+    </div>
+
+    <aside class="tarjeta tarjeta-plana">
+      <h2 style="margin-bottom: 10px;">Para un buen conteo</h2>
+      <ul class="pequeno" style="padding-left: 18px; margin: 0; display: grid; gap: 8px;">
+        <li><strong>Video:</strong> cámara fija sobre la cinta, con las manzanas sueltas cruzando de lado a lado.</li>
+        <li>Pon la <strong>línea de conteo</strong> donde todas las manzanas la crucen completas (50–80 %).</li>
+        <li><strong>Foto:</strong> fruta bien iluminada y poco tapada; cada manzana visible cuenta una vez.</li>
+        <li>El <strong>calibre</strong> (65–80 mm) solo se mide en video con la cámara calibrada (botón «Calibrar» de la app de escritorio).</li>
+        <li>El <strong>color</strong> se evalúa para variedades rojas (ajustable en <code>config.yaml</code>).</li>
+      </ul>
+    </aside>
+  </div>
+</form>
+{% endblock %}

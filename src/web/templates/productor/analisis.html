@@ -1,0 +1,54 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Análisis rápido · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Análisis rápido</h1><p>Saca una foto de un bin o una caja y estima cuántas manzanas hay y cómo vienen. No reemplaza el análisis certificado en la línea del packing.</p></div>
+</div>
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta">
+    {% if cuota.agotada %}
+    <div class="aviso aviso-error">{{ icono('alerta') }}<span>Usaste los {{ cuota.limite }} análisis de tu plan este mes. <a href="{{ url_for('productor.plan') }}">Cámbiate a Pro</a> para seguir analizando.</span></div>
+    {% else %}
+    <form class="formulario" method="post" enctype="multipart/form-data" data-subida>
+      {{ m.csrf() }}
+      {{ ml.campos_archivo(niveles, 50, permite_video=false, requerido=true, captura=true) }}
+      <div><button class="boton boton-primario boton-grande" type="submit">{{ icono('camara') }}Analizar foto</button></div>
+    </form>
+    {% endif %}
+  </section>
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Cuota del mes</h2><p>Plan {{ cuota.plan.nombre }}</p></div></div>
+    <p style="font-size: 1.5rem; font-weight: 650; margin: 0 0 6px;">{{ cuota.usados }} <span class="suave" style="font-size: 1rem; font-weight: 500;">de {{ cuota.limite if cuota.limite else 'ilimitados' }}</span></p>
+    {% if cuota.limite %}{{ gr.medidor(cuota.pct, 'Cuota de análisis rápidos usada') }}{% endif %}
+    <p class="nota">La cuota se renueva el día 1 de cada mes. Los lotes que analiza el packing no la consumen.</p>
+  </section>
+</div>
+
+<section class="tarjeta">
+  <div class="tarjeta-cab"><h2>Mis análisis rápidos</h2></div>
+  {% if previos %}
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th></th><th>Fecha</th><th>Archivo</th><th class="num">Manzanas</th><th class="ancho-barra">Calidad</th><th class="num">% Buena</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for a in previos %}
+      <tr data-analisis="{{ a.id }}" data-estado="{{ a.estado }}">
+        <td>{{ m.miniatura(a) }}</td>
+        <td class="pequeno"><a class="fuerte" href="{{ url_for('lotes.ver_analisis', analisis_id=a.id) }}">{{ a.creado_en|fecha }}</a></td>
+        <td class="pequeno suave" style="max-width: 220px; overflow-wrap: anywhere;">{{ a.nombre_archivo }}</td>
+        <td class="num">{{ a.total|num if a.estado == 'listo' else '—' }}</td>
+        <td class="ancho-barra">{{ gr.segmentada(segmentos(a), delgada=true) }}</td>
+        <td class="num">{{ m.pct_buena(a) if a.estado == 'listo' else '—' }}</td>
+        <td>{{ m.estado_analisis(a.estado) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{{ m.vacio('Aún no has hecho análisis rápidos.', ico='camara') }}{% endif %}
+</section>
+{% endblock %}

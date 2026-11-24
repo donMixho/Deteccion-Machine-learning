@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block titulo %}Ingresar · AppleVision Chile{% endblock %}
+{% block cuerpo %}
+<div class="pantalla-ingreso">
+  <aside class="ingreso-lado">
+    <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
+    <div>
+      <h1>Conteo y calidad de manzanas, lote por lote.</h1>
+      <p>Packing, productor y exportadora miran el mismo resultado, con la misma evidencia.</p>
+      <img src="{{ url_for('static', filename='img/panel_en_vivo.png') }}" width="1400" height="832" alt="Panel de conteo en vivo de AppleVision">
+    </div>
+    <p class="pequeno">Proyecto MLY1101 Machine Learning — DUOC UC</p>
+  </aside>
+
+  <main class="ingreso-form">
+    <div class="ingreso-caja">
+      <h1>Ingresar</h1>
+      <p class="suave">Usa la cuenta que te entregó tu empresa.</p>
+      {{ m.avisos() }}
+      <form class="formulario" method="post">
+        {{ m.csrf() }}
+        <div class="campo">
+          <label for="email">Correo</label>
+          <input id="email" type="email" name="email" value="{{ email }}" required autocomplete="username" autofocus>
+        </div>
+        <div class="campo">
+          <label for="clave">Contraseña</label>
+          <input id="clave" type="password" name="clave" required autocomplete="current-password">
+        </div>
+        <button class="boton boton-primario boton-grande boton-bloque" type="submit">Ingresar</button>
+      </form>
+
+      {% if DEMO %}
+      {% set cuentas = [('admin', 'admin@applevision.demo'), ('jefe_planta', 'jefe@losrobles.demo'), ('operador', 'operador@losrobles.demo'), ('productor', 'productor@elmanzano.demo'), ('exportador', 'comercial@andesfruit.demo')] %}
+      <div class="separador">o entra con una cuenta de demostración</div>
+      <div class="accesos-demo">
+        {% for rol, correo in cuentas %}
+        <a class="acceso" href="{{ url_for('auth.demo', rol=rol) }}"><strong>{{ ROLES[rol].nombre }} <span>→</span></strong><span>{{ correo }}</span></a>
+        {% endfor %}
+      </div>
+      <p class="nota">Contraseña de todas las cuentas de demostración: <code>demo1234</code>. Para desactivarlas: <code>python -m src.web --sin-demo</code></p>
+      {% endif %}
+      <p class="pequeno" style="margin-top: 20px;"><a href="{{ url_for('publico.inicio') }}">← Volver al inicio</a></p>
+    </div>
+  </main>
+</div>
+{% endblock %}

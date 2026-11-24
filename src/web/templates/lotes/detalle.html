@@ -1,0 +1,125 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Lote {{ lote.codigo }} · AppleVision Chile{% endblock %}
+{% block contenido %}
+{% set volver = url_for('productor.panel') if usuario.rol == 'productor' else url_for('lotes.lista') %}
+<a class="miga no-imprimir" href="{{ volver }}">← {{ 'Mis lotes' if usuario.rol == 'productor' else 'Lotes' }}</a>
+<div class="titulo-pagina">
+  <div>
+    <h1>Lote {{ lote.codigo }} &nbsp;{{ m.estado_lote(lote.estado) }}</h1>
+    <p>{{ lote.variedad }} · {{ lote.productor_nombre }} → {{ lote.packing_nombre }}, línea {{ lote.linea }}</p>
+  </div>
+  <div class="acciones no-imprimir">
+    {% if lote.estado == 'aprobado' %}<button class="boton" type="button" onclick="window.print()">{{ icono('imprimir') }}Imprimir informe</button>{% endif %}
+  </div>
+</div>
+
+{% if lote.estado == 'rechazado' %}
+<div class="aviso aviso-error" style="margin-bottom: 16px;">{{ icono('x') }}<span><strong>Rechazado por el jefe de planta:</strong> {{ lote.observacion }}
+  {% if editable %} Sube un nuevo análisis abajo para volver a revisión.{% endif %}</span></div>
+{% endif %}
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta">
+    <div class="tarjeta-cab">
+      <div><h2>Resultado del lote</h2><p>Suma de {{ lote.n_analisis }} análisis terminado{{ 's' if lote.n_analisis != 1 }}.</p></div>
+    </div>
+    {% if lote.total %}
+    <div class="resumen-cats">
+      <div><div class="valor">{{ lote.total|num }}</div><div class="etq">Manzanas contadas</div></div>
+      {% for clave, nombre, clase in CATEGORIAS %}
+      <div><div class="valor">{{ porcentaje(lote[clave], lote.total)|pct }}</div><div class="etq">{{ m.cat(clase, nombre) }} · {{ lote[clave]|num }}</div></div>
+      {% endfor %}
+    </div>
+    {{ gr.segmentada(seg_lote) }}
+    {{ gr.leyenda() }}
+    {% if lote.pudricion %}<p class="nota">{{ lote.pudricion }} manzana{{ 's' if lote.pudricion != 1 }} no pasa{{ 'n' if lote.pudricion != 1 }} por pudrición o daño visible.</p>{% endif %}
+    {% elif pendientes %}
+    {{ m.vacio('El modelo está analizando el archivo. El resultado aparece aquí al terminar.', ico='reloj') }}
+    {% else %}
+    {{ m.vacio('Aún no hay análisis terminados para este lote.' ~ (' Sube una foto o un video abajo.' if editable else ''), ico='camara') }}
+    {% endif %}
+  </section>
+
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><h2>Ficha</h2></div>
+    <dl class="ficha" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+      <div><dt>Productor</dt><dd>{{ lote.productor_nombre }}</dd></div>
+      <div><dt>Packing</dt><dd>{{ lote.packing_nombre }}</dd></div>
+      <div><dt>Exportadora</dt><dd>{{ lote.exportadora_nombre or 'Sin asignar' }}</dd></div>
+      <div><dt>Variedad</dt><dd>{{ lote.variedad }}</dd></div>
+      <div><dt>Bins</dt><dd>{{ lote.bins or '—' }}</dd></div>
+      <div><dt>Línea</dt><dd>{{ lote.linea }}</dd></div>
+      <div><dt>Recepción</dt><dd>{{ lote.creado_en|fecha }}</dd></div>
+      <div><dt>Revisión</dt><dd>{{ lote.revisado_en|fecha }}</dd></div>
+    </dl>
+  </section>
+</div>
+
+{% if lote.estado == 'aprobado' %}
+<section class="certificado" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab">
+    <div>
+      <div class="sello">{{ icono('certificado') }}Certificado emitido</div>
+      <div class="codigo mono">{{ lote.certificado }}</div>
+      <p class="suave">Aprobado por {{ revisor.nombre if revisor else '—' }} el {{ lote.revisado_en|fecha }}.
+        Cualquiera puede comprobarlo en <a href="{{ url_for('publico.verificar', codigo=lote.certificado) }}">{{ url_for('publico.verificar', codigo=lote.certificado, _external=true) }}</a></p>
+    </div>
+  </div>
+  {% if error_conteo %}
+  <dl class="ficha">
+    <div><dt>Conteo del modelo</dt><dd>{{ lote.total|num }}</dd></div>
+    <div><dt>Conteo manual</dt><dd>{{ lote.conteo_manual|num }}</dd></div>
+    <div><dt>Diferencia</dt><dd>{{ '%+d'|format(error_conteo.diferencia) }} ({{ error_conteo.pct|pct }})</dd></div>
+  </dl>
+  {% endif %}
+  {% if lote.observacion %}<p class="nota">{{ lote.observacion }}</p>{% endif %}
+</section>
+{% endif %}
+
+{% if puede_revisar %}
+<section class="tarjeta no-imprimir" style="margin-bottom: 16px; border-color: color-mix(in srgb, var(--primario) 45%, var(--borde));">
+  <div class="tarjeta-cab">
+    <div><h2>Validar y aprobar</h2>
+      <p>Si contaste una muestra a mano, ingrésala: el sistema registra el error del modelo (sirve para validarlo y mejorarlo).
+        Al aprobar se emite el certificado y lo ven el productor y la exportadora.</p></div>
+  </div>
+  <form class="formulario" method="post" action="{{ url_for('lotes.revisar', lote_id=lote.id) }}">
+    {{ m.csrf() }}
+    <div class="campos">
+      <div class="campo">
+        <label for="conteo_manual">Conteo manual (opcional)</label>
+        <input id="conteo_manual" type="number" name="conteo_manual" min="0" placeholder="El modelo contó {{ lote.total }}">
+      </div>
+      <div class="campo" style="grid-column: span 2;">
+        <label for="observacion">Observación</label>
+        <textarea id="observacion" name="observacion" maxlength="500" placeholder="Obligatoria si rechazas el lote. Ej.: repetir con mejor luz."></textarea>
+      </div>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button class="boton boton-aprobar" type="submit" name="accion" value="aprobar" data-confirmar="¿Aprobar el lote {{ lote.codigo }} y emitir el certificado?">{{ icono('certificado') }}Aprobar y emitir certificado</button>
+      <button class="boton boton-peligro" type="submit" name="accion" value="rechazar">{{ icono('x') }}Rechazar</button>
+    </div>
+  </form>
+</section>
+{% elif usuario.rol == 'jefe_planta' and lote.estado in ('por_aprobar', 'en_analisis') and pendientes %}
+<div class="aviso aviso-info" style="margin-bottom: 16px;">{{ icono('reloj') }}<span>Podrás aprobar el lote cuando terminen los análisis en curso.</span></div>
+{% endif %}
+
+<section class="tarjeta">
+  <div class="tarjeta-cab"><div><h2>Análisis y evidencia</h2><p>Foto o video anotado por el modelo: cada manzana con su número y su categoría.</p></div></div>
+  {% for a in analisis %}
+  {{ ml.item_analisis(a, puede_eliminar=editable) }}
+  {% else %}
+  {{ m.vacio('Este lote todavía no tiene análisis.', ico='foto') }}
+  {% endfor %}
+  {% if editable %}
+  <div class="no-imprimir" style="border-top: 1px solid var(--borde); padding-top: 18px; margin-top: 8px;">
+    <h3 style="margin-bottom: 12px;">Agregar foto o video</h3>
+    {{ ml.form_analisis(url_for('lotes.agregar_analisis', lote_id=lote.id), niveles, linea_defecto, permite_video=permite_video, boton='Analizar archivo') }}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

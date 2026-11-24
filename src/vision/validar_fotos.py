@@ -38,14 +38,19 @@ def leer_casos(split=None, manifiesto=None):
                 casos.append((imagen, numero))
     else:
         carpeta = RAIZ / "images" / split
-        casos = []
+        casos, sin_etiqueta = [], 0
         for imagen in sorted((carpeta / "images").iterdir()):
             if imagen.suffix.lower() not in EXTENSIONES:
                 continue
             etiqueta = carpeta / "labels" / (imagen.stem + ".txt")
-            # No asumir cero si falta la etiqueta.
+            # No asumir cero si falta la etiqueta: sin conteo de referencia, la foto se omite.
+            if not etiqueta.exists():
+                sin_etiqueta += 1
+                continue
             lineas = etiqueta.read_text(encoding="utf-8").splitlines()
             casos.append((imagen, sum(bool(linea.strip()) for linea in lineas)))
+        if sin_etiqueta:
+            print(f"Aviso: se omiten {sin_etiqueta} fotos de {split} sin etiqueta (no hay conteo de referencia).")
     if not casos:
         raise ValueError("No hay fotos para evaluar")
     return casos

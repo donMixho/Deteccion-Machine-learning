@@ -1,0 +1,129 @@
+{% extends "publico/_base.html" %}
+{% block titulo %}AppleVision Chile · Conteo y calidad de manzanas con visión artificial{% endblock %}
+{% block pagina %}
+<section class="heroe">
+  <div class="contenedor heroe-rejilla">
+    <div>
+      <div class="sobretitulo">Visión artificial para packings de manzana</div>
+      <h1>Cada manzana contada. Cada lote con evidencia.</h1>
+      <p class="lead">AppleVision cuenta y clasifica las manzanas de la línea de embalaje con un modelo YOLO entrenado por nosotros.
+        El resultado de cada lote llega al productor y a la exportadora en un certificado que cualquiera puede verificar.</p>
+      <div class="acciones">
+        <a class="boton boton-primario boton-grande" href="{{ url_for('auth.ingresar') }}">Ingresar a la plataforma {{ icono('flecha') }}</a>
+        <a class="boton boton-grande" href="#planes">Ver planes</a>
+      </div>
+    </div>
+    <div class="heroe-img">
+      <img src="{{ url_for('static', filename='img/panel_en_vivo.png') }}" width="1400" height="832"
+           alt="Panel de conteo en vivo: cada manzana lleva un ID y un color según su categoría, y el panel suma Buena, Con detalle y No pasa.">
+    </div>
+  </div>
+  <div class="contenedor">
+    <div class="cifras">
+      {% for valor, texto in metricas %}<div class="cifra"><strong>{{ valor }}</strong><span>{{ texto }}</span></div>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="negocio">
+  <div class="contenedor">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Modelo de negocio</div>
+      <h2>Un servicio, tres clientes</h2>
+      <p>El packing paga una suscripción por línea. El productor y la exportadora reciben el resultado de cada lote.
+        El certificado conecta a toda la cadena: cada actor que se suma hace más valioso el servicio para los demás.</p>
+    </div>
+    <div class="lados">
+      <div class="tarjeta lado">
+        {{ icono('linea') }}
+        <h3>Planta de embalaje</h3>
+        <p>Conteo automático y semáforo de calidad en la línea. Menos conteo manual, un informe por lote y menos reclamos.</p>
+        <div class="paga">Paga {{ PLANES.packing.precio|clp }} / mes por línea</div>
+      </div>
+      <div class="tarjeta lado">
+        {{ icono('manzana') }}
+        <h3>Productor</h3>
+        <p>Ve cómo salió cada lote que entregó, con la foto o el video anotado como evidencia. Puede analizar fotos de sus bins.</p>
+        <div class="paga">Gratis · Pro {{ PLANES.productor_pro.precio|clp }} / mes</div>
+      </div>
+      <div class="tarjeta lado">
+        {{ icono('certificado') }}
+        <h3>Exportadora</h3>
+        <p>Recibe la calidad certificada de sus proveedores antes de embarcar, consolidada por variedad y packing.</p>
+        <div class="paga">Paga {{ PLANES.exportadora.precio|clp }} / mes</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="seccion seccion-alt" id="como-funciona">
+  <div class="contenedor">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Cómo funciona</div>
+      <h2>Del bin al certificado en cuatro pasos</h2>
+    </div>
+    <div class="pasos">
+      <div class="paso"><h3>Recepción</h3><p>El operador registra el lote (productor, variedad, bins, línea) y sube la foto o el video de la cinta.</p><span class="badge badge-neutro rol">Operador de línea</span></div>
+      <div class="paso"><h3>Análisis con IA</h3><p>YOLO detecta cada manzana y ByteTrack la sigue para contarla una sola vez. El semáforo la clasifica por calibre, color, forma y pudrición.</p><span class="badge badge-neutro rol">Modelo YOLO26n</span></div>
+      <div class="paso"><h3>Validación</h3><p>El jefe de planta compara con un conteo manual y aprueba el lote. Al aprobarlo se emite un certificado con código único.</p><span class="badge badge-neutro rol">Jefe de planta</span></div>
+      <div class="paso"><h3>Transparencia</h3><p>El productor y la exportadora ven el resultado con evidencia. Cualquiera puede verificar el código del certificado.</p><span class="badge badge-neutro rol">Productor · Exportadora</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="roles">
+  <div class="contenedor">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Roles</div>
+      <h2>Un rol para cada actor de la cadena</h2>
+      <p>Cada usuario ve solo lo que le corresponde a su empresa.{% if DEMO %} Prueba cada rol con un clic: son cuentas de demostración.{% endif %}</p>
+    </div>
+    {% set iconos_rol = {'admin': 'panel', 'jefe_planta': 'verificar', 'operador': 'camara', 'productor': 'manzana', 'exportador': 'certificado'} %}
+    <div class="roles-grid">
+      {% for clave, rol in roles.items() %}
+      <div class="tarjeta rol-tarjeta">
+        <h3>{{ icono(iconos_rol[clave]) }}{{ rol.nombre }}</h3>
+        <p>{{ rol.descripcion }}</p>
+        {% if DEMO %}<a href="{{ url_for('auth.demo', rol=clave) }}">Probar como {{ rol.nombre|lower }} →</a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="seccion seccion-alt" id="planes">
+  <div class="contenedor">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Planes</div>
+      <h2>Planes simples, en pesos chilenos</h2>
+      <p>Precios referenciales + IVA. Son supuestos del modelo de negocio que se validarán en el piloto.</p>
+    </div>
+    <div class="planes-grid">
+      {% for clave, plan in planes.items() %}
+      <div class="tarjeta plan{% if clave == 'packing' %} destacado{% endif %}">
+        <div class="para">{{ TIPOS_EMPRESA[plan.tipo_empresa] }}{% if clave == 'packing' %} · cliente principal{% endif %}</div>
+        <h3>{{ plan.nombre }}</h3>
+        <div class="precio">{% if plan.precio %}{{ plan.precio|clp }}{% else %}Gratis{% endif %} <span class="unidad">{{ plan.unidad if plan.precio }}</span></div>
+        <ul>{% for b in beneficios[clave] %}<li>{{ icono('check') }}<span>{{ b }}</span></li>{% endfor %}</ul>
+        {% if plan.instalacion %}<div class="pie-plan">Instalación única: {{ plan.instalacion|clp }} por línea (cámara, mini PC, calibración y capacitación).</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="seccion" id="verificar">
+  <div class="contenedor">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Verificar</div>
+      <h2>¿Te enviaron un certificado?</h2>
+      <p>Ingresa su código (por ejemplo, AV-2026-7KQ3XD) para comprobar que es auténtico y ver el resultado del lote.</p>
+    </div>
+    <form class="verificar-caja" method="get" action="{{ url_for('publico.verificar') }}">
+      <label class="sr-only" for="codigo">Código del certificado</label>
+      <input id="codigo" type="text" name="codigo" placeholder="AV-2026-XXXXXX" required maxlength="20" autocomplete="off">
+      <button class="boton boton-primario" type="submit">{{ icono('verificar') }}Verificar</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

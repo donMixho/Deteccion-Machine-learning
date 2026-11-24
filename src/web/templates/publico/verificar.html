@@ -1,0 +1,56 @@
+{% extends "publico/_base.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% block titulo %}Verificar certificado · AppleVision Chile{% endblock %}
+{% block pagina %}
+<section class="seccion" style="padding-top: 40px;">
+  <div class="contenedor" style="max-width: 860px;">
+    <div class="seccion-cab">
+      <div class="sobretitulo">Verificación pública</div>
+      <h2>Verificar un certificado</h2>
+      <p>Comprueba que un certificado de AppleVision es auténtico y revisa el resultado del lote.</p>
+    </div>
+    <form class="verificar-caja no-imprimir" method="get" style="margin-bottom: 24px;">
+      <label class="sr-only" for="codigo">Código del certificado</label>
+      <input id="codigo" type="text" name="codigo" value="{{ codigo }}" placeholder="AV-2026-XXXXXX" required maxlength="20" autocomplete="off">
+      <button class="boton boton-primario" type="submit">{{ icono('verificar') }}Verificar</button>
+    </form>
+
+    {% if codigo and not lote %}
+    <div class="aviso aviso-error">{{ icono('alerta') }}<span>No hay un certificado válido con el código <strong>{{ codigo }}</strong>. Revisa que esté bien escrito.</span></div>
+    {% elif lote %}
+    <div class="certificado">
+      <div class="tarjeta-cab">
+        <div>
+          <div class="sello">{{ icono('certificado') }}Certificado válido</div>
+          <div class="codigo mono">{{ lote.certificado }}</div>
+          <p class="suave">Lote {{ lote.codigo }} · emitido el {{ lote.revisado_en|fecha }}{% if revisor %} por {{ revisor.nombre }}{% endif %}</p>
+        </div>
+        <button class="boton boton-chico no-imprimir" type="button" onclick="window.print()">{{ icono('imprimir') }}Imprimir</button>
+      </div>
+      <dl class="ficha">
+        <div><dt>Packing</dt><dd>{{ lote.packing_nombre }}</dd></div>
+        <div><dt>Productor</dt><dd>{{ lote.productor_nombre }}</dd></div>
+        <div><dt>Exportadora</dt><dd>{{ lote.exportadora_nombre or '—' }}</dd></div>
+        <div><dt>Variedad</dt><dd>{{ lote.variedad }}</dd></div>
+        <div><dt>Bins</dt><dd>{{ lote.bins or '—' }}</dd></div>
+        <div><dt>Recepción</dt><dd>{{ lote.creado_en|fecha }}</dd></div>
+      </dl>
+      <div class="resumen-cats">
+        <div><div class="valor">{{ lote.total|num }}</div><div class="etq">Manzanas contadas</div></div>
+        {% for clave, nombre, clase in CATEGORIAS %}
+        <div><div class="valor">{{ lote[clave]|num }}</div><div class="etq">{{ m.cat(clase, nombre) }} · {{ porcentaje(lote[clave], lote.total)|pct }}</div></div>
+        {% endfor %}
+      </div>
+      {{ gr.segmentada(seg_lote) }}
+      {% if lote.conteo_manual %}
+      <p class="nota">Validado con un conteo manual de {{ lote.conteo_manual|num }} manzanas
+        (diferencia: {{ (lote.total - lote.conteo_manual)|num }}).</p>
+      {% endif %}
+    </div>
+    <p class="nota">Este certificado informa el conteo y la calidad visual estimados por AppleVision a partir de fotos o video del lote.
+      No reemplaza la inspección ni la certificación fitosanitaria oficial del SAG.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

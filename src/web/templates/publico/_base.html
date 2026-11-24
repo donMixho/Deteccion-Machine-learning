@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block cuerpo %}
+<header class="sitio-cab">
+  <div class="contenedor">
+    <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
+    <nav class="sitio-nav" aria-label="Secciones">
+      <a class="ocultable" href="{{ url_for('publico.inicio') }}#negocio">Modelo de negocio</a>
+      <a class="ocultable" href="{{ url_for('publico.inicio') }}#como-funciona">Cómo funciona</a>
+      <a class="ocultable" href="{{ url_for('publico.inicio') }}#planes">Planes</a>
+      <a class="ocultable" href="{{ url_for('publico.verificar') }}">Verificar certificado</a>
+      <button class="boton boton-fantasma boton-chico" id="cambiar-tema" type="button">{{ icono('tema') }}</button>
+      {% if usuario %}
+      <a class="boton boton-primario boton-chico" href="{{ url_for({'admin': 'admin.panel', 'jefe_planta': 'planta.panel', 'operador': 'planta.turno', 'productor': 'productor.panel', 'exportador': 'exportador.panel'}[usuario.rol]) }}">Ir a mi panel</a>
+      {% else %}
+      <a class="boton boton-primario boton-chico" href="{{ url_for('auth.ingresar') }}">Ingresar</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+<div class="contenedor" style="padding-top: 16px;">{{ m.avisos() }}</div>
+{% block pagina %}{% endblock %}
+<footer class="sitio-pie">
+  <div class="contenedor">
+    <span>AppleVision Chile · Proyecto MLY1101 Machine Learning — DUOC UC</span>
+    <span>Detector: Ultralytics YOLO (AGPL-3.0) · Datos: Roboflow Universe (dominio público y CC BY 4.0)</span>
+  </div>
+</footer>
+{% endblock %}

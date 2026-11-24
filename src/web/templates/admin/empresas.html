@@ -1,0 +1,66 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% block titulo %}Empresas y planes · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Empresas y planes</h1><p>Clientes de la plataforma, su plan y lo que aportan al ingreso mensual.</p></div>
+</div>
+
+<section class="tarjeta" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab"><div><h2>Nueva empresa</h2><p>Después crea sus usuarios en «Usuarios».</p></div></div>
+  <form class="formulario" method="post">
+    {{ m.csrf() }}
+    <div class="campos">
+      <div class="campo"><label for="nombre">Nombre</label><input id="nombre" type="text" name="nombre" required maxlength="120" placeholder="Ej.: Packing San Clemente"></div>
+      <div class="campo"><label for="tipo">Tipo</label>
+        <select id="tipo" name="tipo" required>{% for clave, nombre in TIPOS_EMPRESA.items() if clave != 'plataforma' %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}</select></div>
+      <div class="campo"><label for="plan">Plan</label>
+        <select id="plan" name="plan" required>
+          {% for tipo, planes in planes_por_tipo.items() if tipo != 'plataforma' %}
+          <optgroup label="{{ TIPOS_EMPRESA[tipo] }}">{% for clave, p in planes.items() %}<option value="{{ clave }}">{{ p.nombre }} · {{ p.precio|clp }}</option>{% endfor %}</optgroup>
+          {% endfor %}
+        </select>
+        <div class="ayuda">Debe corresponder al tipo de empresa.</div></div>
+      <div class="campo"><label for="lineas">Líneas (solo packing)</label><input id="lineas" type="number" name="lineas" min="1" max="50" value="1"></div>
+      <div class="campo"><label for="region">Región</label><input id="region" type="text" name="region" maxlength="60" placeholder="Ej.: Maule"></div>
+      <div class="campo"><label for="rut">RUT</label><input id="rut" type="text" name="rut" maxlength="20" placeholder="76.123.456-7"></div>
+    </div>
+    <div><button class="boton boton-primario" type="submit">{{ icono('nuevo') }}Crear empresa</button></div>
+  </form>
+</section>
+
+<section class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th>Empresa</th><th>Tipo</th><th>Plan y líneas</th><th class="num">Usuarios</th><th class="num">MRR</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for e in empresas %}
+      <tr>
+        <td><span class="fuerte">{{ e.nombre }}</span><div class="pequeno suave">{{ e.region or '—' }}</div></td>
+        <td>{{ TIPOS_EMPRESA[e.tipo] }}</td>
+        <td>
+          <form method="post" action="{{ url_for('admin.editar_empresa', empresa_id=e.id) }}" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+            {{ m.csrf() }}
+            <label class="sr-only" for="plan-{{ e.id }}">Plan de {{ e.nombre }}</label>
+            <select id="plan-{{ e.id }}" name="plan" style="width: auto;">{% for clave, p in planes_por_tipo[e.tipo].items() %}<option value="{{ clave }}"{% if clave == e.plan %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}</select>
+            {% if e.tipo == 'packing' %}<label class="sr-only" for="lineas-{{ e.id }}">Líneas</label><input id="lineas-{{ e.id }}" type="number" name="lineas" min="1" max="50" value="{{ e.lineas }}" style="width: 72px;" title="Líneas contratadas">{% endif %}
+            <button class="boton boton-chico" type="submit">Guardar</button>
+          </form>
+        </td>
+        <td class="num">{{ e.n_usuarios }}</td>
+        <td class="num">{{ ingreso_mensual(e.plan, e.lineas)|clp if e.activa else '—' }}</td>
+        <td>{% if e.activa %}<span class="badge estado-listo">{{ icono('check') }}Activa</span>{% else %}<span class="badge badge-neutro">Inactiva</span>{% endif %}</td>
+        <td class="acciones-celda">
+          <form method="post" action="{{ url_for('admin.editar_empresa', empresa_id=e.id) }}" class="en-linea"
+                data-confirmar="{{ '¿Desactivar ' ~ e.nombre ~ '? Sus usuarios no podrán ingresar.' if e.activa else '' }}">
+            {{ m.csrf() }}<input type="hidden" name="accion" value="estado">
+            <button class="boton boton-chico{{ ' boton-peligro' if e.activa }}" type="submit">{{ 'Desactivar' if e.activa else 'Activar' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
