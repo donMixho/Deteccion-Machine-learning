@@ -1,0 +1,53 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Mis lotes · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Mis lotes</h1><p>{{ usuario.empresa_nombre }} · la fruta que entregaste a los packings, con su evidencia.</p></div>
+  <div class="acciones"><a class="boton boton-primario" href="{{ url_for('productor.analisis') }}">{{ icono('camara') }}Análisis rápido</a></div>
+</div>
+
+<div class="kpis">
+  {{ m.kpi('Lotes entregados', lotes|length) }}
+  {{ m.kpi('Manzanas contadas', total|num) }}
+  {{ m.kpi('% Buena', pct_buena|pct, 'Promedio ponderado de todos tus lotes') }}
+  {{ m.kpi('Certificados', certificados, 'Lotes aprobados por el packing') }}
+</div>
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>% Buena por lote</h2><p>Tus últimos lotes con resultado, del más antiguo al más reciente.</p></div></div>
+    {% if grafico %}
+    {{ gr.columnas(grafico, '% Buena por lote') }}
+    <details class="datos"><summary>Ver datos en tabla</summary>
+      <table class="tabla tabla-compacta"><thead><tr><th>Lote</th><th class="num">% Buena</th></tr></thead>
+        <tbody>{% for etiqueta, valor, tip in serie %}<tr><td>{{ tip.split(' · ')[0] }}</td><td class="num">{{ valor|pct }}</td></tr>{% endfor %}</tbody></table>
+    </details>
+    {% else %}{{ m.vacio('Cuando un packing analice tu fruta, verás aquí cómo salió cada lote.', ico='lotes') }}{% endif %}
+  </section>
+
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Tu plan</h2><p>{{ cuota.plan.nombre }} · {% if cuota.plan.precio %}{{ cuota.plan.precio|clp }} / mes{% else %}gratis{% endif %}</p></div><span class="badge badge-plan">{{ icono('plan') }}{{ cuota.plan.nombre }}</span></div>
+    <div class="etiqueta">Análisis rápidos este mes</div>
+    <p style="font-size: 1.5rem; font-weight: 650; margin: 0 0 6px;">{{ cuota.usados }} <span class="suave" style="font-size: 1rem; font-weight: 500;">de {{ cuota.limite if cuota.limite else 'ilimitados' }}</span></p>
+    {% if cuota.limite %}{{ gr.medidor(cuota.pct, 'Cuota de análisis rápidos usada') }}{% endif %}
+    {% if solicitud %}
+    <p class="nota">Pediste el plan {{ PLANES[solicitud.plan_solicitado].nombre }} el {{ solicitud.creada_en|fecha }}. El equipo AppleVision lo activará pronto.</p>
+    {% elif usuario.empresa_plan == 'productor_basico' %}
+    <p class="pequeno suave" style="margin-top: 14px;">Con Pro tienes 300 análisis al mes y puedes descargar tus reportes en CSV.</p>
+    <a class="boton" href="{{ url_for('productor.plan') }}">Ver plan Pro {{ icono('flecha') }}</a>
+    {% endif %}
+  </section>
+</div>
+
+<section class="tarjeta">
+  <div class="tarjeta-cab">
+    <div><h2>Lotes entregados</h2><p>Puedes ver el resultado antes de que el packing lo apruebe. El certificado se emite al aprobar.</p></div>
+    {% if PLANES[usuario.empresa_plan].csv %}<a class="boton boton-chico" href="{{ url_for('lotes.exportar_csv') }}">{{ icono('descargar') }}CSV</a>{% endif %}
+  </div>
+  {% if lotes %}{{ ml.tabla(lotes, packing=true, productor=false, certificado=true) }}
+  {% else %}{{ m.vacio('Todavía no hay lotes a tu nombre.', ico='lotes') }}{% endif %}
+</section>
+{% endblock %}

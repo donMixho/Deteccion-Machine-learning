@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titulo %}Error {{ codigo }} · AppleVision Chile{% endblock %}
+{% block cuerpo %}
+<main class="contenedor" style="min-height: 80vh; display: grid; place-items: center;">
+  <div class="tarjeta" style="max-width: 480px; text-align: center; padding: 36px;">
+    <div class="sobretitulo">Error {{ codigo }}</div>
+    <h1 style="margin: 8px 0 12px;">{{ {403: 'Sin acceso', 404: 'No encontrado', 413: 'Archivo muy grande'}.get(codigo, 'Algo salió mal') }}</h1>
+    <p class="suave">{{ mensaje }}</p>
+    {% if usuario %}
+    <a class="boton boton-primario" href="{{ url_for({'admin': 'admin.panel', 'jefe_planta': 'planta.panel', 'operador': 'planta.turno', 'productor': 'productor.panel', 'exportador': 'exportador.panel'}[usuario.rol]) }}">Volver a mi panel</a>
+    {% else %}
+    <a class="boton boton-primario" href="{{ url_for('publico.inicio') }}">Ir al inicio</a>
+    {% endif %}
+  </div>
+</main>
+{% endblock %}

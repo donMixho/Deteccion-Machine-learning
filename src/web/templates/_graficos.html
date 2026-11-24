@@ -1,0 +1,54 @@
+{# Gráficos en HTML/CSS. Geometría calculada en src/web/graficos.py.
+   Reglas: barras de 24px como máximo con extremo redondeado de 4px, grilla fina, tooltip por marca,
+   leyenda cuando hay más de una serie y tabla de datos disponible. #}
+
+{% macro marcas_y(marcas) -%}
+<div class="grafico-marcas" aria-hidden="true">
+  {% for m in marcas %}<div class="marca-y{% if loop.first %} base{% endif %}" style="bottom: {{ '%.2f'|format(m.pct) }}%"><span>{{ m.texto }}</span></div>{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro columnas(g, titulo) -%}
+<div class="grafico" role="group" aria-label="{{ titulo }}">
+  <div class="grafico-plot">
+    {{ marcas_y(g.marcas) }}
+    <div class="grafico-cols">
+      {% for b in g.barras %}<div class="col" tabindex="0" data-tip="{{ b.tip }}" aria-label="{{ b.tip }}"><div class="col-barra" style="height: {{ '%.2f'|format(b.pct) }}%"></div></div>{% endfor %}
+    </div>
+  </div>
+  <div class="grafico-x" aria-hidden="true">{% for b in g.barras %}<span>{{ b.etiqueta if b.mostrar else '' }}</span>{% endfor %}</div>
+</div>
+{%- endmacro %}
+
+{% macro apiladas(g, titulo) -%}
+<div class="grafico" role="group" aria-label="{{ titulo }}">
+  <div class="grafico-plot">
+    {{ marcas_y(g.marcas) }}
+    <div class="grafico-cols">
+      {% for c in g.columnas %}<div class="col" tabindex="0" data-tip="{{ c.tip }}" aria-label="{{ c.tip }}">
+        {%- if c.total %}<div class="col-pila" style="height: {{ '%.2f'|format(c.pct) }}%">{% for s in c.segmentos %}<div class="seg-{{ s.clase }}" style="flex: {{ s.valor }} 1 0"></div>{% endfor %}</div>{% endif -%}
+      </div>{% endfor %}
+    </div>
+  </div>
+  <div class="grafico-x" aria-hidden="true">{% for c in g.columnas %}<span>{{ c.etiqueta if c.mostrar else '' }}</span>{% endfor %}</div>
+</div>
+{%- endmacro %}
+
+{% macro leyenda() -%}
+<div class="leyenda">{% for clave, nombre, clase in CATEGORIAS %}<span><i class="punto {{ clase }}"></i>{{ nombre }}</span>{% endfor %}</div>
+{%- endmacro %}
+
+{# Barra segmentada: alta (28px, % dentro de cada bloque si cabe) o delgada (8px, sin texto) #}
+{% macro segmentada(segmentos, delgada=false, etiqueta='Distribución de calidad') -%}
+{% if segmentos %}
+<div class="segmentada{% if delgada %} segmentada-delgada{% endif %}" role="img"
+     aria-label="{{ etiqueta }}: {% for s in segmentos %}{{ s.tip }}{{ '; ' if not loop.last }}{% endfor %}">
+  {% for s in segmentos %}<div class="seg-{{ s.clase }}{% if s.texto and not delgada %} con-texto{% endif %}" style="flex: {{ '%.4f'|format(s.pct) }} 1 0" data-tip="{{ s.tip }}">{% if not delgada %}{{ s.texto }}{% endif %}</div>{% endfor %}
+</div>
+{% else %}<div class="segmentada-vacia" role="img" aria-label="Sin resultados todavía"></div>{% endif %}
+{%- endmacro %}
+
+{% macro medidor(pct, etiqueta) -%}
+<div class="medidor{% if pct >= 100 %} lleno{% elif pct >= 80 %} alerta{% endif %}" role="meter" aria-valuemin="0"
+     aria-valuemax="100" aria-valuenow="{{ pct|round|int }}" aria-label="{{ etiqueta }}"><div style="width: {{ '%.1f'|format(pct) }}%"></div></div>
+{%- endmacro %}

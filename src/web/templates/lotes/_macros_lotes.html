@@ -1,0 +1,131 @@
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+
+{# Tabla de lotes compartida por todos los roles #}
+{% macro tabla(lotes, packing=false, productor=true, certificado=false) -%}
+<div class="tabla-envoltura">
+<table class="tabla">
+  <thead><tr>
+    <th><span class="sr-only">Miniatura</span></th><th>Lote</th><th>Recepción</th>
+    {% if packing %}<th>Packing</th>{% endif %}
+    {% if productor %}<th>Productor</th>{% endif %}
+    <th>Variedad</th><th class="num">Contadas</th><th class="ancho-barra">Calidad</th><th class="num">% Buena</th><th>Estado</th>
+    {% if certificado %}<th>Certificado</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for l in lotes %}
+  <tr>
+    <td>{{ m.miniatura_lote(l) }}</td>
+    <td><a class="fuerte" href="{{ url_for('lotes.detalle', lote_id=l.id) }}">{{ l.codigo }}</a>
+      <div class="pequeno suave">Línea {{ l.linea }}{% if l.bins %} · {{ l.bins }} bins{% endif %}</div></td>
+    <td class="pequeno nowrap">{{ l.creado_en|fecha }}</td>
+    {% if packing %}<td>{{ l.packing_nombre }}</td>{% endif %}
+    {% if productor %}<td>{{ l.productor_nombre }}</td>{% endif %}
+    <td>{{ l.variedad }}</td>
+    <td class="num">{{ l.total|num if l.n_analisis else '—' }}</td>
+    <td class="ancho-barra">{{ gr.segmentada(segmentos(l), delgada=true, etiqueta='Calidad del lote ' ~ l.codigo) }}</td>
+    <td class="num">{{ m.pct_buena(l) }}</td>
+    <td>{{ m.estado_lote(l.estado) }}</td>
+    {% if certificado %}<td class="mono pequeno nowrap">{% if l.certificado %}<a href="{{ url_for('publico.verificar', codigo=l.certificado) }}">{{ l.certificado }}</a>{% else %}—{% endif %}</td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{%- endmacro %}
+
+{# Formulario para subir una foto o un video a analizar #}
+{% macro form_analisis(action, niveles, linea_defecto, permite_video=true, boton='Analizar', requerido=true, extra='') -%}
+<form class="formulario" method="post" action="{{ action }}" enctype="multipart/form-data" data-subida>
+  {{ m.csrf() }}
+  {{ extra }}
+  {{ campos_archivo(niveles, linea_defecto, permite_video, requerido) }}
+  <div><button class="boton boton-primario" type="submit">{{ icono('camara') }}{{ boton }}</button></div>
+</form>
+{%- endmacro %}
+
+{% macro campos_archivo(niveles, linea_defecto, permite_video=true, requerido=true, captura=false) -%}
+<label class="zona-archivo">
+  {{ icono('subir') }}
+  <div class="titulo">Arrastra una {{ 'foto o un video' if permite_video else 'foto' }}, o haz clic para elegir</div>
+  <div class="pequeno suave">{{ 'Fotos: jpg, png, bmp, webp · Videos: mp4, avi, mov, mkv, wmv, webm (hasta 500 MB)' if permite_video else 'jpg, png, bmp o webp. En el celular puedes tomarla con la cámara.' }}</div>
+  <input type="file" name="archivo" accept="{{ 'image/*,video/*,.mkv,.wmv' if permite_video else 'image/*' }}"{% if captura %} capture="environment"{% endif %}{% if requerido %} required{% endif %}>
+  <div class="nombre-archivo" aria-live="polite"></div>
+</label>
+<div class="campos">
+  <div class="campo">
+    <label for="sensibilidad">Sensibilidad del detector</label>
+    <select id="sensibilidad" name="sensibilidad">{% for clave, texto in niveles.items() %}<option value="{{ clave }}">{{ texto }}</option>{% endfor %}</select>
+  </div>
+  {% if permite_video %}
+  <div class="campo solo-video" hidden>
+    <label for="linea_conteo">Línea de conteo (% del ancho del video)</label>
+    <div class="rango"><input id="linea_conteo" type="range" name="linea_conteo" min="10" max="90" step="5" value="{{ linea_defecto }}"><output for="linea_conteo"></output></div>
+    <div class="ayuda">Cada manzana se cuenta una sola vez, cuando su centro cruza esta línea vertical.</div>
+  </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{# Un análisis: evidencia (foto o video anotado) + resultado #}
+{% macro item_analisis(a, puede_eliminar=false) -%}
+{% set url_resultado = url_for('lotes.archivo', analisis_id=a.id, cual='resultado') %}
+<article class="analisis-item" id="analisis-{{ a.id }}" data-analisis="{{ a.id }}" data-estado="{{ a.estado }}">
+  <div>
+    {% if a.estado == 'listo' and a.archivo_resultado %}
+    <div class="evidencia">
+      {% if a.tipo == 'video' %}
+      <video controls preload="metadata" playsinline src="{{ url_resultado }}"{% if a.miniatura %} poster="{{ url_for('lotes.archivo', analisis_id=a.id, cual='miniatura') }}"{% endif %}></video>
+      {% else %}
+      <a href="{{ url_resultado }}" target="_blank" rel="noopener"><img src="{{ url_resultado }}" alt="Foto analizada: cada manzana con su caja, su número y su categoría" loading="lazy"></a>
+      {% endif %}
+    </div>
+    {% elif a.estado == 'error' %}
+    <div class="en-proceso"><div>{{ icono('alerta') }}<strong>No se pudo analizar</strong><p class="pequeno suave">{{ a.mensaje_error }}</p></div></div>
+    {% else %}
+    <div class="en-proceso">
+      <div>
+        {{ icono('reloj') }}
+        <strong class="progreso-texto">{{ 'En cola' if a.estado == 'en_cola' else 'Analizando con YOLO…' }}</strong>
+        <div class="progreso indeterminado" style="width: 240px; max-width: 100%;"><div></div></div>
+        <p class="pequeno suave">{{ 'Un video puede tardar unos minutos en CPU. Esta página se actualiza sola.' if a.tipo == 'video' else 'Toma unos segundos. Esta página se actualiza sola.' }}</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div>
+    <div style="display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap;">
+      <h3>{{ m.tipo_archivo(a.tipo) }}</h3>
+      {{ m.estado_analisis(a.estado) }}
+    </div>
+    <p class="pequeno suave" style="margin-top: 4px; overflow-wrap: anywhere;">{{ a.nombre_archivo }} · subido por {{ a.usuario_nombre }} el {{ a.creado_en|fecha }}</p>
+    {% if a.estado == 'listo' %}
+    <div class="resumen-cats" style="grid-template-columns: repeat(2, minmax(0, 1fr));">
+      <div><div class="valor">{{ a.total|num }}</div><div class="etq">{{ 'Contadas al cruzar la línea' if a.tipo == 'video' else 'Manzanas detectadas' }}</div></div>
+      {% for clave, nombre, clase in CATEGORIAS %}
+      <div><div class="valor">{{ a[clave]|num }}</div><div class="etq">{{ m.cat(clase, nombre) }}</div></div>
+      {% endfor %}
+    </div>
+    {{ gr.segmentada(segmentos(a)) }}
+    <dl class="ficha pequeno" style="margin-top: 16px;">
+      {% if a.tipo == 'video' %}
+      <div><dt>IDs vistos</dt><dd>{{ a.ids_vistos }}</dd></div>
+      <div><dt>Línea de conteo</dt><dd>{{ a.linea_conteo }} %</dd></div>
+      {% endif %}
+      <div><dt>Por pudrición</dt><dd>{{ a.pudricion }}</dd></div>
+      <div><dt>Sensibilidad</dt><dd>{{ a.sensibilidad }} %</dd></div>
+      <div><dt>Tiempo de análisis</dt><dd>{{ a.duracion_s|duracion }}</dd></div>
+    </dl>
+    {% endif %}
+    <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+      <a class="boton boton-chico" href="{{ url_for('lotes.archivo', analisis_id=a.id, cual='entrada') }}" download>{{ icono('descargar') }}Original</a>
+      {% if a.estado == 'listo' and a.archivo_resultado %}<a class="boton boton-chico" href="{{ url_resultado }}" download>{{ icono('descargar') }}Resultado</a>{% endif %}
+      {% if puede_eliminar and a.estado not in ('en_cola', 'procesando') %}
+      <form method="post" action="{{ url_for('lotes.eliminar_analisis', analisis_id=a.id) }}" class="en-linea" data-confirmar="¿Eliminar este análisis? También se borran sus archivos.">
+        {{ m.csrf() }}<button class="boton boton-chico boton-peligro" type="submit">{{ icono('basura') }}Eliminar</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{%- endmacro %}

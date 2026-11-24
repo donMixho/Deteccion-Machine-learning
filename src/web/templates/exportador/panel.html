@@ -1,0 +1,56 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Panel de la exportadora · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Calidad de tus proveedores</h1><p>{{ usuario.empresa_nombre }} · lotes aprobados por los packings que van a tu nombre.</p></div>
+  <div class="acciones"><a class="boton" href="{{ url_for('lotes.exportar_csv') }}">{{ icono('descargar') }}Descargar CSV</a></div>
+</div>
+
+<div class="kpis">
+  {{ m.kpi('Manzanas certificadas', total|num, 'En ' ~ lotes|length ~ ' lote' ~ ('s' if lotes|length != 1) ~ ' certificado' ~ ('s' if lotes|length != 1), 'kpi-heroe') }}
+  {{ m.kpi('% Buena', pct_buena|pct, 'Promedio ponderado') }}
+  {{ m.kpi('Proveedores', proveedores ~ ' packing' ~ ('s' if proveedores != 1), productores ~ ' productor' ~ ('es' if productores != 1)) }}
+  {{ m.kpi('En proceso hacia ti', en_proceso, 'Lotes aún no aprobados') }}
+</div>
+
+<div class="rejilla rejilla-2">
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Por variedad</h2><p>Calidad de lo certificado, de mayor a menor volumen.</p></div></div>
+    {% if por_variedad %}
+    {{ gr.leyenda() }}
+    <table class="tabla tabla-compacta">
+      <thead><tr><th>Variedad</th><th class="num">Lotes</th><th class="num">Manzanas</th><th class="ancho-barra">Calidad</th><th class="num">% Buena</th></tr></thead>
+      <tbody>{% for g in por_variedad %}<tr><td class="fuerte">{{ g.nombre }}</td><td class="num">{{ g.lotes }}</td><td class="num">{{ g.total|num }}</td><td class="ancho-barra">{{ gr.segmentada(g.segmentos, delgada=true, etiqueta=g.nombre) }}</td><td class="num">{{ g.pct_buena|pct }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}{{ m.vacio('Aún no hay lotes certificados a tu nombre.', ico='certificado') }}{% endif %}
+  </section>
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Por packing</h2><p>Compara la fruta que recibes de cada planta.</p></div></div>
+    {% if por_packing %}
+    {{ gr.leyenda() }}
+    <table class="tabla tabla-compacta">
+      <thead><tr><th>Packing</th><th class="num">Lotes</th><th class="num">Manzanas</th><th class="ancho-barra">Calidad</th><th class="num">% Buena</th></tr></thead>
+      <tbody>{% for g in por_packing %}<tr><td class="fuerte">{{ g.nombre }}</td><td class="num">{{ g.lotes }}</td><td class="num">{{ g.total|num }}</td><td class="ancho-barra">{{ gr.segmentada(g.segmentos, delgada=true, etiqueta=g.nombre) }}</td><td class="num">{{ g.pct_buena|pct }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}{{ m.vacio('Sin datos todavía.', ico='empresa') }}{% endif %}
+  </section>
+</div>
+
+<section class="tarjeta" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab"><div><h2>Lotes certificados</h2><p>Haz clic en un lote para ver la evidencia, o en el certificado para su verificación pública.</p></div></div>
+  {% if lotes %}{{ ml.tabla(lotes, packing=true, productor=true, certificado=true) }}
+  {% else %}{{ m.vacio('Cuando un packing apruebe un lote a tu nombre, aparecerá aquí.', ico='certificado') }}{% endif %}
+</section>
+
+<section class="tarjeta tarjeta-plana">
+  <h2 style="margin-bottom: 10px;">Verificar un certificado</h2>
+  <form class="verificar-caja" method="get" action="{{ url_for('publico.verificar') }}">
+    <label class="sr-only" for="codigo">Código</label>
+    <input id="codigo" type="text" name="codigo" placeholder="AV-2026-XXXXXX" required maxlength="20">
+    <button class="boton boton-primario" type="submit">{{ icono('verificar') }}Verificar</button>
+  </form>
+</section>
+{% endblock %}

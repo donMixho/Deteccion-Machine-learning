@@ -1,0 +1,56 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Panel de planta · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Panel de planta</h1><p>{{ usuario.empresa_nombre }} · producción y calidad de este mes.</p></div>
+  <div class="acciones"><a class="boton boton-primario" href="{{ url_for('lotes.nuevo') }}">{{ icono('nuevo') }}Recibir lote</a></div>
+</div>
+
+<div class="kpis">
+  {{ m.kpi('Manzanas contadas este mes', (mes.total or 0)|num, 'En ' ~ mes.n ~ ' análisis · ' ~ certificados_mes ~ ' certificado' ~ ('s' if certificados_mes != 1) ~ ' emitido' ~ ('s' if certificados_mes != 1), 'kpi-heroe') }}
+  {{ m.kpi('% Buena', pct_buena|pct, '% No pasa: ' ~ pct_no_pasa|pct) }}
+  {{ m.kpi('Lotes por aprobar', por_aprobar, en_analisis ~ ' en análisis ahora') }}
+  {{ m.kpi('Error del conteo vs. manual', error_medio|pct if error_medio is not none else '—',
+           'Promedio en ' ~ n_validados ~ ' lote' ~ ('s' if n_validados != 1) ~ ' validado' ~ ('s' if n_validados != 1) if n_validados else 'Ingresa conteos manuales al aprobar') }}
+</div>
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Producción diaria por categoría</h2><p>Manzanas contadas en los análisis de los últimos 14 días.</p></div></div>
+    {{ gr.leyenda() }}
+    {{ gr.apiladas(grafico, 'Producción diaria por categoría, últimos 14 días') }}
+    <details class="datos"><summary>Ver datos en tabla</summary>
+      <table class="tabla tabla-compacta">
+        <thead><tr><th>Día</th>{% for _, nombre, _ in CATEGORIAS %}<th class="num">{{ nombre }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for etiqueta, valores in datos_grafico %}<tr><td>{{ etiqueta }}</td>{% for clave, _, _ in CATEGORIAS %}<td class="num">{{ valores.get(clave) or 0 }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+      </table>
+    </details>
+  </section>
+
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Calidad del mes</h2><p>Proporción de cada categoría sobre el total contado.</p></div></div>
+    {{ gr.segmentada(segmentos_mes, etiqueta='Calidad del mes') }}
+    {{ gr.leyenda() }}
+    {% if mes.pudricion %}<p class="nota">{{ mes.pudricion }} manzanas no pasaron por pudrición o daño visible.</p>{% endif %}
+    <h3 style="margin: 18px 0 8px;">Por línea</h3>
+    {% if por_linea %}
+    <table class="tabla tabla-compacta">
+      <thead><tr><th>Línea</th><th class="num">Lotes</th><th class="num">Contadas</th><th class="num">% Buena</th></tr></thead>
+      <tbody>{% for l in por_linea %}<tr><td>Línea {{ l.linea }}</td><td class="num">{{ l.lotes }}</td><td class="num">{{ l.total|num }}</td><td class="num">{{ m.pct_buena(l) }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p class="suave pequeno">Sin lotes este mes.</p>{% endif %}
+  </section>
+</div>
+
+<section class="tarjeta">
+  <div class="tarjeta-cab">
+    <div><h2>Por revisar</h2><p>Lotes analizados que esperan tu validación, o con análisis en curso.</p></div>
+    <a class="boton boton-chico" href="{{ url_for('lotes.lista') }}">Ver todos los lotes</a>
+  </div>
+  {% if por_revisar %}{{ ml.tabla(por_revisar) }}
+  {% else %}{{ m.vacio('No hay lotes pendientes. ¡Todo al día!', ico='check') }}{% endif %}
+</section>
+{% endblock %}

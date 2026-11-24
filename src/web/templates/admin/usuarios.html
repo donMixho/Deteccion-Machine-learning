@@ -1,0 +1,56 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% block titulo %}Usuarios · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Usuarios</h1><p>Cada usuario pertenece a una empresa y tiene un rol. El rol define qué ve y qué puede hacer.</p></div>
+</div>
+
+<section class="tarjeta" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab"><div><h2>Crear usuario</h2><p>Jefe de planta y operador van en un packing; productor y exportadora, en su propia empresa.</p></div></div>
+  <form class="formulario" method="post">
+    {{ m.csrf() }}
+    <div class="campos">
+      <div class="campo"><label for="nombre">Nombre</label><input id="nombre" type="text" name="nombre" required maxlength="80"></div>
+      <div class="campo"><label for="email">Correo</label><input id="email" type="email" name="email" required maxlength="120"></div>
+      <div class="campo"><label for="clave">Contraseña inicial</label><input id="clave" type="password" name="clave" required minlength="8" autocomplete="new-password"><div class="ayuda">Mínimo 8 caracteres.</div></div>
+      <div class="campo"><label for="rol">Rol</label>
+        <select id="rol" name="rol" required>{% for clave, r in ROLES.items() %}<option value="{{ clave }}">{{ r.nombre }} ({{ TIPOS_EMPRESA[r.tipo_empresa] }})</option>{% endfor %}</select></div>
+      <div class="campo"><label for="empresa_id">Empresa</label>
+        <select id="empresa_id" name="empresa_id" required>
+          {% for tipo, nombre_tipo in TIPOS_EMPRESA.items() %}
+          <optgroup label="{{ nombre_tipo }}">{% for e in empresas if e.tipo == tipo %}<option value="{{ e.id }}">{{ e.nombre }}</option>{% endfor %}</optgroup>
+          {% endfor %}
+        </select></div>
+    </div>
+    <div><button class="boton boton-primario" type="submit">{{ icono('nuevo') }}Crear usuario</button></div>
+  </form>
+</section>
+
+<section class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Empresa</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for u in usuarios %}
+      <tr>
+        <td class="fuerte">{{ u.nombre }}</td>
+        <td class="pequeno">{{ u.email }}</td>
+        <td><span class="badge badge-plan">{{ ROLES[u.rol].nombre }}</span></td>
+        <td>{{ u.empresa_nombre }}</td>
+        <td class="pequeno">{{ u.ultimo_acceso|fecha }}</td>
+        <td>{% if u.activo %}<span class="badge estado-listo">{{ icono('check') }}Activo</span>{% else %}<span class="badge badge-neutro">Inactivo</span>{% endif %}</td>
+        <td class="acciones-celda">
+          {% if u.id != usuario.id %}
+          <form method="post" action="{{ url_for('admin.cambiar_estado_usuario', usuario_id=u.id) }}" class="en-linea">
+            {{ m.csrf() }}<button class="boton boton-chico{{ ' boton-peligro' if u.activo }}" type="submit">{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+          </form>
+          {% else %}<span class="pequeno suave">Tú</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block cuerpo %}
+<div class="app">
+  <aside class="lateral">
+    <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
+    <div class="rol-chip"><strong>{{ ROLES[usuario.rol].nombre }}</strong><span>{{ usuario.empresa_nombre }}</span></div>
+    <nav class="nav" aria-label="Menú principal">
+      {% for ep, texto, ico in navegacion %}
+      {% set activo = endpoint == ep
+           or (ep == 'lotes.lista' and endpoint == 'lotes.detalle')
+           or (ep == 'productor.analisis' and endpoint == 'lotes.ver_analisis') %}
+      <a href="{{ url_for(ep) }}"{% if activo %} class="activo" aria-current="page"{% endif %}>{{ icono(ico) }}{{ texto }}</a>
+      {% endfor %}
+    </nav>
+    <div class="lateral-pie">
+      Plan <strong>{{ PLANES[usuario.empresa_plan].nombre }}</strong>{% if usuario.empresa_plan == 'packing' %} · {{ usuario.empresa_lineas }} línea{{ 's' if usuario.empresa_lineas != 1 }}{% endif %}
+      {% if DEMO %}<br>Datos de demostración{% endif %}
+    </div>
+  </aside>
+  <div class="principal">
+    <header class="barra-sup">
+      <button class="boton boton-fantasma boton-chico" id="cambiar-tema" type="button">{{ icono('tema') }}</button>
+      <div class="usuario-sup"><span class="avatar" aria-hidden="true">{{ usuario.nombre[:1] }}</span><span class="nombre">{{ usuario.nombre }}</span></div>
+      <form method="post" action="{{ url_for('auth.salir') }}" class="en-linea">{{ m.csrf() }}<button class="boton boton-chico" type="submit">{{ icono('salir') }}Salir</button></form>
+    </header>
+    <main class="contenido">
+      {{ m.avisos() }}
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}

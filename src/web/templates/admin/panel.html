@@ -1,0 +1,102 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% block titulo %}Panel del negocio · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Panel del negocio</h1><p>Ingresos, clientes y uso de la plataforma. Este mes desde el día 1.</p></div>
+  <div class="acciones">
+    <a class="boton" href="{{ url_for('admin.empresas') }}">{{ icono('empresa') }}Empresas y planes</a>
+    <a class="boton boton-primario" href="{{ url_for('admin.usuarios') }}">{{ icono('usuarios') }}Crear usuario</a>
+  </div>
+</div>
+
+<div class="kpis">
+  {{ m.kpi('Ingreso mensual recurrente (MRR)', mrr|clp, 'Suscripciones activas + IVA · ' ~ (mrr * 12)|clp ~ ' al año', 'kpi-heroe') }}
+  {{ m.kpi('Clientes activos', (tipos.values()|sum)|num, tipos['packing'] ~ ' packings · ' ~ tipos['productor'] ~ ' productores · ' ~ tipos['exportadora'] ~ ' exportadoras') }}
+  {{ m.kpi('Análisis este mes', analisis_mes|num, manzanas_mes|num ~ ' manzanas contadas') }}
+  {{ m.kpi('Certificados este mes', certificados_mes|num, usuarios_activos|num ~ ' usuarios activos') }}
+</div>
+
+{% if solicitudes %}
+<section class="tarjeta" style="margin-bottom: 16px; border-color: color-mix(in srgb, var(--detalle) 55%, var(--borde));">
+  <div class="tarjeta-cab"><div><h2>Solicitudes de cambio de plan</h2><p>Clientes que quieren subir de plan. Al aprobar, el cambio rige de inmediato.</p></div></div>
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th>Empresa</th><th>Pide</th><th>Plan actual</th><th>Solicitado por</th><th>Fecha</th><th class="num">Ingreso extra</th><th></th></tr></thead>
+      <tbody>
+      {% for s in solicitudes %}
+      <tr>
+        <td class="fuerte">{{ s.empresa_nombre }}</td>
+        <td><span class="badge badge-plan">{{ PLANES[s.plan_solicitado].nombre }}</span></td>
+        <td>{{ PLANES[s.plan_actual].nombre }}</td>
+        <td>{{ s.usuario_nombre }}</td>
+        <td class="pequeno">{{ s.creada_en|fecha }}</td>
+        <td class="num">+{{ (PLANES[s.plan_solicitado].precio - PLANES[s.plan_actual].precio)|clp }} / mes</td>
+        <td class="acciones-celda">
+          <form method="post" action="{{ url_for('admin.resolver_solicitud', solicitud_id=s.id) }}" class="en-linea">
+            {{ m.csrf() }}
+            <button class="boton boton-chico boton-aprobar" name="accion" value="aprobar" type="submit">{{ icono('check') }}Aprobar</button>
+            <button class="boton boton-chico boton-peligro" name="accion" value="rechazar" type="submit">Rechazar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Análisis por día</h2><p>Fotos y videos analizados en toda la plataforma, últimos 14 días.</p></div></div>
+    {{ gr.columnas(grafico, 'Análisis por día, últimos 14 días') }}
+    <details class="datos"><summary>Ver datos en tabla</summary>
+      <table class="tabla tabla-compacta"><thead><tr><th>Día</th><th class="num">Análisis</th></tr></thead>
+        <tbody>{% for etiqueta, valor, _ in serie %}<tr><td>{{ etiqueta }}</td><td class="num">{{ valor }}</td></tr>{% endfor %}</tbody></table>
+    </details>
+  </section>
+
+  <section class="tarjeta">
+    <div class="tarjeta-cab"><div><h2>Ingresos por plan</h2><p>Cada línea de packing cuenta como una unidad.</p></div></div>
+    <div class="tabla-envoltura">
+      <table class="tabla tabla-compacta">
+        <thead><tr><th>Plan</th><th class="num">Clientes</th><th class="num">Unid.</th><th class="num">MRR</th></tr></thead>
+        <tbody>
+        {% for plan, f in por_plan.items() %}
+        <tr><td>{{ PLANES[plan].nombre }}</td><td class="num">{{ f.clientes }}</td><td class="num">{{ f.unidades }}</td><td class="num">{{ f.mrr|clp }}</td></tr>
+        {% endfor %}
+        <tr><td class="fuerte">Total</td><td></td><td></td><td class="num fuerte">{{ mrr|clp }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota">Precios en <code>src/web/negocio.py</code> (supuestos de MODELO_NEGOCIO.md).</p>
+  </section>
+</div>
+
+<section class="tarjeta">
+  <div class="tarjeta-cab"><div><h2>Últimos análisis</h2><p>Actividad reciente de todas las empresas.</p></div><a class="boton boton-chico" href="{{ url_for('lotes.lista') }}">Ver todos los lotes</a></div>
+  {% if recientes %}
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th></th><th>Fecha</th><th>Empresa</th><th>Usuario</th><th>Tipo</th><th>Lote</th><th class="num">Contadas</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for a in recientes %}
+      <tr>
+        <td>{{ m.miniatura(a) }}</td>
+        <td class="pequeno">{{ a.creado_en|fecha }}</td>
+        <td>{{ a.empresa_nombre }}</td>
+        <td>{{ a.usuario_nombre }}</td>
+        <td>{{ m.tipo_archivo(a.tipo) }}</td>
+        <td>{% if a.lote_id %}<a href="{{ url_for('lotes.detalle', lote_id=a.lote_id) }}">{{ a.lote_codigo }}</a>{% else %}<a href="{{ url_for('lotes.ver_analisis', analisis_id=a.id) }}">Análisis rápido</a>{% endif %}</td>
+        <td class="num">{{ a.total|num if a.estado == 'listo' else '—' }}</td>
+        <td>{{ m.estado_analisis(a.estado) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{{ m.vacio('Todavía no hay análisis en la plataforma.', ico='camara') }}{% endif %}
+</section>
+{% endblock %}

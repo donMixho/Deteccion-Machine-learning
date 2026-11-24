@@ -1,0 +1,34 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% block titulo %}Mi plan · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Mi plan</h1><p>Ver los resultados de tus lotes siempre es gratis. Los planes cambian cuántos análisis rápidos puedes hacer.</p></div>
+</div>
+
+{% if pendiente %}
+<div class="aviso aviso-info" style="margin-bottom: 16px;">{{ icono('reloj') }}<span>Solicitaste el plan <strong>{{ PLANES[pendiente.plan_solicitado].nombre }}</strong> el {{ pendiente.creada_en|fecha }}. El equipo AppleVision lo activará.</span></div>
+{% endif %}
+
+<div class="rejilla rejilla-2" style="max-width: 860px;">
+  {% for clave, plan in planes.items() %}
+  <section class="tarjeta plan{% if clave == usuario.empresa_plan %} destacado{% endif %}">
+    <div class="para">{{ 'Plan actual' if clave == usuario.empresa_plan else 'Disponible' }}</div>
+    <h2>{{ plan.nombre }}</h2>
+    <div class="precio">{% if plan.precio %}{{ plan.precio|clp }}{% else %}Gratis{% endif %} <span class="unidad">{{ plan.unidad if plan.precio }}</span></div>
+    <ul>{% for b in beneficios[clave] %}<li>{{ icono('check') }}<span>{{ b }}</span></li>{% endfor %}</ul>
+    <div class="pie-plan">
+      {% if clave == usuario.empresa_plan %}
+      <div class="etiqueta">Análisis rápidos este mes: {{ cuota.usados }} de {{ cuota.limite }}</div>
+      {{ gr.medidor(cuota.pct, 'Cuota usada') }}
+      {% elif not pendiente %}
+      <form method="post">{{ m.csrf() }}<input type="hidden" name="plan" value="{{ clave }}">
+        <button class="boton boton-primario boton-bloque" type="submit">Solicitar {{ plan.nombre }}</button></form>
+      {% endif %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+<p class="nota" style="max-width: 860px;">Precios referenciales + IVA. En esta versión de demostración no se cobra: la solicitud la aprueba el administrador desde su panel.</p>
+{% endblock %}

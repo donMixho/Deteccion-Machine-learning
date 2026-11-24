@@ -1,0 +1,42 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% set titulos = {'admin': 'Todos los lotes', 'jefe_planta': 'Lotes de la planta', 'operador': 'Lotes de la planta', 'productor': 'Mis lotes', 'exportador': 'Lotes certificados'} %}
+{% block titulo %}{{ titulos[usuario.rol] }} · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div>
+    <h1>{{ titulos[usuario.rol] }}</h1>
+    <p>{% if usuario.rol == 'exportador' %}Lotes aprobados por el packing que van a nombre de {{ usuario.empresa_nombre }}.
+       {% elif usuario.rol == 'admin' %}Vista de soporte: lotes de todas las empresas.
+       {% else %}{{ lotes|length }} lote{{ 's' if lotes|length != 1 }}{% if estado or buscar %} con los filtros aplicados{% endif %}.{% endif %}</p>
+  </div>
+  <div class="acciones">
+    {% if permite_csv %}<a class="boton" href="{{ url_for('lotes.exportar_csv', estado=estado, q=buscar) }}">{{ icono('descargar') }}Descargar CSV</a>{% endif %}
+    {% if usuario.rol in ('jefe_planta', 'operador') %}<a class="boton boton-primario" href="{{ url_for('lotes.nuevo') }}">{{ icono('nuevo') }}Recibir lote</a>{% endif %}
+  </div>
+</div>
+
+<div class="tarjeta">
+  <form class="filtros" method="get">
+    <label class="sr-only" for="q">Buscar</label>
+    <input id="q" type="search" name="q" value="{{ buscar }}" placeholder="Buscar código, productor, variedad…">
+    {% if usuario.rol != 'exportador' %}
+    <label class="sr-only" for="estado">Estado</label>
+    <select id="estado" name="estado">
+      <option value="">Todos los estados</option>
+      {% for clave, nombre in ESTADOS_LOTE.items() %}<option value="{{ clave }}"{% if estado == clave %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <button class="boton" type="submit">{{ icono('buscar') }}Filtrar</button>
+    {% if estado or buscar %}<a class="boton boton-fantasma" href="{{ url_for('lotes.lista') }}">Limpiar</a>{% endif %}
+  </form>
+  {% if lotes %}
+  {{ ml.tabla(lotes, packing=usuario.rol in ('admin', 'productor', 'exportador'), productor=usuario.rol != 'productor',
+              certificado=usuario.rol in ('admin', 'productor', 'exportador')) }}
+  {% else %}
+  {{ m.vacio('No hay lotes que mostrar.' if not (estado or buscar) else 'Ningún lote coincide con la búsqueda.',
+             url_for('lotes.nuevo') if usuario.rol in ('jefe_planta', 'operador') else None, 'Recibir el primer lote') }}
+  {% endif %}
+</div>
+{% endblock %}

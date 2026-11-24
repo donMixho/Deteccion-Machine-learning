@@ -1,0 +1,17 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Análisis rápido · AppleVision Chile{% endblock %}
+{% block contenido %}
+<a class="miga" href="{{ url_for('productor.analisis') if usuario.rol == 'productor' else url_for('lotes.lista') }}">← Análisis rápido</a>
+<div class="titulo-pagina">
+  <div>
+    <h1>Análisis rápido</h1>
+    <p>Estimación con una foto. Para un resultado certificado, el lote debe pasar por la línea de un packing AppleVision.</p>
+  </div>
+  {% if usuario.rol == 'productor' %}<div class="acciones"><a class="boton boton-primario" href="{{ url_for('productor.analisis') }}">{{ icono('camara') }}Analizar otra foto</a></div>{% endif %}
+</div>
+<section class="tarjeta">
+  {{ ml.item_analisis(a, puede_eliminar=(usuario.rol == 'productor')) }}
+</section>
+{% endblock %}

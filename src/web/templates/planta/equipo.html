@@ -1,0 +1,50 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% block titulo %}Equipo · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Equipo de {{ usuario.empresa_nombre }}</h1><p>Crea las cuentas de los operadores de línea. El plan Packing incluye usuarios ilimitados.</p></div>
+</div>
+
+<section class="tarjeta" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab"><h2>Agregar persona</h2></div>
+  <form class="formulario" method="post">
+    {{ m.csrf() }}
+    <div class="campos">
+      <div class="campo"><label for="nombre">Nombre</label><input id="nombre" type="text" name="nombre" required maxlength="80"></div>
+      <div class="campo"><label for="email">Correo</label><input id="email" type="email" name="email" required maxlength="120"></div>
+      <div class="campo"><label for="clave">Contraseña inicial</label><input id="clave" type="password" name="clave" required minlength="8" autocomplete="new-password"><div class="ayuda">Mínimo 8 caracteres.</div></div>
+      <div class="campo"><label for="rol">Rol</label>
+        <select id="rol" name="rol"><option value="operador">Operador de línea</option><option value="jefe_planta">Jefe de planta</option></select></div>
+    </div>
+    <div><button class="boton boton-primario" type="submit">{{ icono('nuevo') }}Crear cuenta</button></div>
+  </form>
+</section>
+
+<section class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th class="num">Análisis</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+      <tbody>
+      {% for u in miembros %}
+      <tr>
+        <td class="fuerte">{{ u.nombre }}</td>
+        <td class="pequeno">{{ u.email }}</td>
+        <td><span class="badge badge-plan">{{ ROLES[u.rol].nombre }}</span></td>
+        <td class="num">{{ u.n_analisis }}</td>
+        <td class="pequeno">{{ u.ultimo_acceso|fecha }}</td>
+        <td>{% if u.activo %}<span class="badge estado-listo">{{ icono('check') }}Activo</span>{% else %}<span class="badge badge-neutro">Inactivo</span>{% endif %}</td>
+        <td class="acciones-celda">
+          {% if u.id != usuario.id %}
+          <form method="post" action="{{ url_for('planta.cambiar_estado', usuario_id=u.id) }}" class="en-linea">
+            {{ m.csrf() }}<button class="boton boton-chico{{ ' boton-peligro' if u.activo }}" type="submit">{{ 'Desactivar' if u.activo else 'Activar' }}</button>
+          </form>
+          {% else %}<span class="pequeno suave">Tú</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

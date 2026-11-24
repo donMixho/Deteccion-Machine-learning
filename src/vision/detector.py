@@ -31,6 +31,9 @@ IOU_FOTO_DEFAULT = 0.35
 IOU_NMS = 0.45        # NMS más estricto: una sola caja por manzana aunque estén juntas en el centro
 TRACKER_CFG = RAIZ / "config" / "bytetrack_apple.yaml"   # ByteTrack con track_buffer=60
 CSV_SALIDA = RAIZ / "data" / "02_processed" / "metricas.csv"
+# Códec según la extensión del video guardado. WebM (VP8) se reproduce en el navegador
+# (lo usa la plataforma web); mp4v solo en reproductores de escritorio.
+FOURCC_POR_EXTENSION = {".webm": "VP80"}
 COLUMNAS = ["id", "frame", "area_px", "diametro_mm_est", "hue", "saturacion",
             "valor", "aspecto", "clase_yolo", "pct_defecto"]
 
@@ -165,7 +168,13 @@ def medir_referencia(frame: np.ndarray, modelo: str, cfg: Config, conf: float = 
 
 def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
              csv_salida: Path = CSV_SALIDA, lote: str = "Lote 1",
-             linea: float = 0.8, guardar: str = None, conf: float = CONF_DEFAULT) -> dict:
+             linea: float = 0.8, guardar: str = None, conf: float = CONF_DEFAULT,
+             al_frame=None) -> dict:
+    """Cuenta las manzanas de un video o cámara.
+
+    `al_frame(n_frame, frame_anotado)`: opcional, se llama con cada frame ya dibujado
+    (la plataforma web lo usa para mostrar el progreso). Si devuelve True, se detiene.
+    """
     yolo = YOLO(modelo)
     # Cámara (índice entero): en Windows DirectShow abre más rápido; si falla, backend por defecto
     cap = cv2.VideoCapture(fuente, cv2.CAP_DSHOW) if isinstance(fuente, int) else cv2.VideoCapture(fuente)
@@ -182,7 +191,8 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
     escritor_video = None
     if guardar:
         os.makedirs(os.path.dirname(os.path.abspath(guardar)), exist_ok=True)
-        escritor_video = cv2.VideoWriter(guardar, cv2.VideoWriter_fourcc(*"mp4v"),
+        fourcc = FOURCC_POR_EXTENSION.get(Path(guardar).suffix.lower(), "mp4v")
+        escritor_video = cv2.VideoWriter(guardar, cv2.VideoWriter_fourcc(*fourcc),
                                          fps_video, (ancho, alto))
 
     os.makedirs(csv_salida.parent, exist_ok=True)
@@ -269,6 +279,8 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
 
             if escritor_video is not None:
                 escritor_video.write(frame)
+            if al_frame is not None and al_frame(n_frame, frame):
+                break
             if mostrar:
                 cv2.imshow("AppleVision Chile (q para salir)", frame)
                 if cv2.waitKey(1) & 0xFF == ord("q"):

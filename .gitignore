@@ -22,6 +22,9 @@ mlruns/*
 # Salidas generadas
 reports/*
 
+# Plataforma web: base de datos, archivos subidos y clave de sesión
+web_data/
+
 # IDE / SO
 .vscode/
 .idea/

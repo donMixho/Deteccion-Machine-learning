@@ -1,0 +1,54 @@
+{% extends "panel.html" %}
+{% import "_macros.html" as m with context %}
+{% import "_graficos.html" as gr with context %}
+{% import "lotes/_macros_lotes.html" as ml with context %}
+{% block titulo %}Mi turno · AppleVision Chile{% endblock %}
+{% block contenido %}
+<div class="titulo-pagina">
+  <div><h1>Hola, {{ usuario.nombre.split(' ')[0] }}</h1><p>Recibe los lotes y sube la foto o el video de la línea. El modelo cuenta y clasifica por ti.</p></div>
+</div>
+
+<div class="rejilla rejilla-2-1">
+  <section class="tarjeta" style="display: flex; flex-direction: column; justify-content: center; gap: 14px;">
+    <div>
+      <h2>¿Llegó fruta?</h2>
+      <p class="suave" style="margin-top: 4px;">Registra el lote y analiza el video de la cinta o una foto. Toma menos de un minuto.</p>
+    </div>
+    <div><a class="boton boton-primario boton-grande" href="{{ url_for('lotes.nuevo') }}">{{ icono('nuevo') }}Recibir un lote</a></div>
+  </section>
+  <div class="kpis" style="margin: 0;">
+    {{ m.kpi('Mis análisis de hoy', hoy.n) }}
+    {{ m.kpi('Manzanas contadas hoy', hoy.total|num) }}
+  </div>
+</div>
+
+<section class="tarjeta" style="margin-bottom: 16px;">
+  <div class="tarjeta-cab"><div><h2>Lotes que necesitan atención</h2><p>Primero los rechazados (hay que repetir el análisis) y los que aún no tienen archivo.</p></div></div>
+  {% if activos %}{{ ml.tabla(activos) }}
+  {% else %}{{ m.vacio('No hay lotes abiertos en la planta.', url_for('lotes.nuevo'), 'Recibir un lote', ico='check') }}{% endif %}
+</section>
+
+<section class="tarjeta">
+  <div class="tarjeta-cab"><div><h2>Mis últimos análisis</h2><p>La lista se actualiza sola cuando termina un análisis.</p></div></div>
+  {% if mis_analisis %}
+  <div class="tabla-envoltura">
+    <table class="tabla">
+      <thead><tr><th></th><th>Fecha</th><th>Lote</th><th>Tipo</th><th class="num">Contadas</th><th class="ancho-barra">Calidad</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for a in mis_analisis %}
+      <tr data-analisis="{{ a.id }}" data-estado="{{ a.estado }}">
+        <td>{{ m.miniatura(a) }}</td>
+        <td class="pequeno">{{ a.creado_en|fecha }}</td>
+        <td>{% if a.lote_id %}<a class="fuerte" href="{{ url_for('lotes.detalle', lote_id=a.lote_id) }}#analisis-{{ a.id }}">{{ a.lote_codigo }}</a>{% else %}—{% endif %}</td>
+        <td>{{ m.tipo_archivo(a.tipo) }}</td>
+        <td class="num">{{ a.total|num if a.estado == 'listo' else '—' }}</td>
+        <td class="ancho-barra">{{ gr.segmentada(segmentos(a), delgada=true) }}</td>
+        <td>{{ m.estado_analisis(a.estado) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}{{ m.vacio('Aún no has analizado archivos.', ico='camara') }}{% endif %}
+</section>
+{% endblock %}

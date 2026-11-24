@@ -1,0 +1,62 @@
+{# Piezas reutilizables. Importar con: {% import "_macros.html" as m with context %} #}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro avisos() -%}
+{% with mensajes = get_flashed_messages(with_categories=true) %}
+{% if mensajes %}
+<div class="avisos" role="status">
+  {% for categoria, mensaje in mensajes %}
+  {% set cat = categoria if categoria in ['exito', 'error', 'info'] else 'info' %}
+  <div class="aviso aviso-{{ cat }}">{{ icono({'exito': 'check', 'error': 'alerta', 'info': 'info'}[cat]) }}<span>{{ mensaje }}</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+{%- endmacro %}
+
+{% macro estado_lote(estado) -%}
+{%- set iconos = {'recepcionado': 'lotes', 'en_analisis': 'reloj', 'por_aprobar': 'reloj', 'aprobado': 'check', 'rechazado': 'x'} -%}
+<span class="badge estado-{{ estado }}">{{ icono(iconos[estado]) }}{{ ESTADOS_LOTE[estado] }}</span>
+{%- endmacro %}
+
+{% macro estado_analisis(estado) -%}
+{%- set iconos = {'en_cola': 'reloj', 'procesando': 'reloj', 'listo': 'check', 'error': 'alerta'} -%}
+<span class="badge estado-{{ estado }}">{{ icono(iconos[estado]) }}{{ ESTADOS_ANALISIS[estado] }}</span>
+{%- endmacro %}
+
+{% macro cat(clase, nombre) -%}
+<span class="cat {{ clase }}">{{ icono({'buena': 'check', 'detalle': 'alerta', 'nopasa': 'x'}[clase]) }}{{ nombre }}</span>
+{%- endmacro %}
+
+{% macro kpi(etiqueta, valor, sub='', clase='') -%}
+<div class="kpi {{ clase }}">
+  <div class="kpi-etiqueta">{{ etiqueta }}</div>
+  <div class="kpi-valor">{{ valor }}</div>
+  {% if sub %}<div class="kpi-sub">{{ sub }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro pct_buena(fila) -%}
+{% if fila.total %}{{ porcentaje(fila.buena, fila.total)|pct }}{% else %}<span class="suave">—</span>{% endif %}
+{%- endmacro %}
+
+{% macro vacio(texto, url=None, accion=None, ico='lotes') -%}
+<div class="vacio">{{ icono(ico) }}<p>{{ texto }}</p>{% if url %}<a class="boton boton-primario" href="{{ url }}">{{ accion }}</a>{% endif %}</div>
+{%- endmacro %}
+
+{% macro tipo_archivo(tipo) -%}
+<span class="cat">{{ icono('video' if tipo == 'video' else 'foto') }}{{ 'Video' if tipo == 'video' else 'Foto' }}</span>
+{%- endmacro %}
+
+{% macro miniatura(a) -%}
+{% if a and a.miniatura %}<img class="miniatura" src="{{ url_for('lotes.archivo', analisis_id=a.id, cual='miniatura') }}" alt="" loading="lazy">
+{% else %}<span class="miniatura miniatura-vacia">{{ icono('foto') }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro miniatura_lote(lote) -%}
+{% if lote.ultimo_analisis_id %}<img class="miniatura" src="{{ url_for('lotes.archivo', analisis_id=lote.ultimo_analisis_id, cual='miniatura') }}" alt="" loading="lazy">
+{% else %}<span class="miniatura miniatura-vacia">{{ icono('lotes') }}</span>{% endif %}
+{%- endmacro %}
