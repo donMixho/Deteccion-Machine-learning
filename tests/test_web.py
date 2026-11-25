@@ -86,7 +86,7 @@ class PruebaWeb(unittest.TestCase):
         r = self.c.get("/")
         self.assertEqual(r.status_code, 200)
         html = r.get_data(as_text=True)
-        for texto in ("Un servicio, tres clientes", "Productor Pro", "$290.000", "Jefe de planta", "0,908"):
+        for texto in ("Un servicio, tres clientes", "Productor Pro", "$290.000", "Jefe de planta", "0,914"):
             self.assertIn(texto, html)
 
     def test_ingreso_con_clave_incorrecta_y_correcta(self):

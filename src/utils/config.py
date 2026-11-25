@@ -23,6 +23,15 @@ class Config:
     s3_bucket: str
     s3_prefix: str
     max_pct_defecto: float = 12.0
+    regla_pudricion: str = "auto"   # "auto" | "si" | "no" (ver clasificador.usar_regla_pudricion)
+
+
+def _modo_regla(valor) -> str:
+    """Lee `regla_pudricion`. YAML entrega true/false (y yes/no) como booleanos."""
+    if isinstance(valor, bool):
+        return "si" if valor else "no"
+    valor = str(valor).strip().lower()
+    return valor if valor in ("auto", "si", "no") else "auto"
 
 
 def cargar_config(ruta: Path = CONFIG_PATH) -> Config:
@@ -40,6 +49,7 @@ def cargar_config(ruta: Path = CONFIG_PATH) -> Config:
         s3_bucket=str(datos.get("s3_bucket") or ""),
         s3_prefix=str(datos.get("s3_prefix") or ""),
         max_pct_defecto=float(datos.get("max_pct_defecto", 12.0)),
+        regla_pudricion=_modo_regla(datos.get("regla_pudricion", "auto")),
     )
 
 

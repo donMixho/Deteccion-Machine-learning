@@ -7,12 +7,12 @@ from src.web.negocio import BENEFICIOS, PLANES, ROLES
 
 bp = Blueprint("publico", __name__)
 
-# Resultados reales del modelo (README.md, sección Resultados)
+# Resultados reales del modelo de 2 clases en validación (README.md, sección Resultados)
 METRICAS_MODELO = [
-    ("0,908", "mAP50 en validación"),
-    ("0,881", "Recall"),
-    ("758", "imágenes de entrenamiento"),
-    ("2.223", "manzanas etiquetadas"),
+    ("0,914", "mAP50 detectando manzanas"),
+    ("94 %", "de las manzanas dañadas detectadas"),
+    ("758", "imágenes etiquetadas"),
+    ("2.978", "manzanas etiquetadas"),
 ]
 
 

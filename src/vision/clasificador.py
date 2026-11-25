@@ -5,6 +5,9 @@ OJO (fuga de datos): este semáforo es una regla de negocio para la pantalla en 
 La etiqueta `calidad` para entrenar ML debe venir de Roboflow, NO de esta función,
 porque está derivada de las mismas features que usarían los modelos.
 """
+from collections import Counter
+from statistics import median
+
 from src.utils.config import Config
 
 GOOD = "good"
@@ -36,18 +39,40 @@ def tiene_pudricion(pct_defecto: float, cfg: Config) -> bool:
     return pct_defecto > cfg.max_pct_defecto
 
 
+def usar_regla_pudricion(cfg: Config, nombres_modelo) -> bool:
+    """¿Aplicar la regla de color para pudrición con este modelo?
+
+    `regla_pudricion` en config.yaml: "si" siempre, "no" nunca, "auto" (por defecto) solo si el
+    modelo NO detecta el daño como clase. Con el modelo de 2 clases (apple / damaged_apple) la
+    regla empeora el resultado: confunde sombras con pudrición (ver src/vision/validar_danio.py).
+    """
+    modo = getattr(cfg, "regla_pudricion", "auto")
+    if modo in ("si", "no"):
+        return modo == "si"
+    return not any(str(n).lower() in CLASES_DEFECTO for n in nombres_modelo)
+
+
+def es_danada(clases, pcts_defecto, cfg: Config, regla_color: bool) -> bool:
+    """Daño de una manzana: el modelo la ve como clase de defecto (la clase más frecuente si hay
+    varios frames) o, si la regla está activa, la mediana del % de defecto supera el umbral."""
+    if clases and Counter(str(c).lower() for c in clases).most_common(1)[0][0] in CLASES_DEFECTO:
+        return True
+    return bool(regla_color and len(pcts_defecto) and tiene_pudricion(float(median(pcts_defecto)), cfg))
+
+
 def clasificar(diametro_mm: float, hue: float, saturacion: float,
                aspecto: float, clase_yolo: str, cfg: Config, usar_calibre: bool = True,
-               pct_defecto: float = 0.0) -> str:
+               pct_defecto: float = 0.0, regla_color: bool = True) -> str:
     """Devuelve 'good', 'detalle' o 'no_pasa'.
 
     `usar_calibre=False` ignora el diámetro: en una foto cualquiera no se conoce la escala px/mm.
     `pct_defecto` (% de manchas oscuras/marrones en la fruta): sobre `cfg.max_pct_defecto`
     la fruta es 'no_pasa' aunque calibre y forma sean normales (pudrición / daño).
+    `regla_color=False` ignora `pct_defecto` (ver usar_regla_pudricion).
     """
     if str(clase_yolo).lower() in CLASES_DEFECTO:
         return NO_PASA
-    if tiene_pudricion(pct_defecto, cfg):
+    if regla_color and tiene_pudricion(pct_defecto, cfg):
         return NO_PASA
 
     # Calibre

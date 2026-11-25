@@ -21,7 +21,7 @@ from ultralytics import YOLO
 
 from src.utils.config import RAIZ, Config, cargar_config
 from src.vision.calibrador import estimar_diametro_mm
-from src.vision.clasificador import COLORES_BGR, NO_PASA, clasificar, tiene_pudricion
+from src.vision.clasificador import COLORES_BGR, NO_PASA, clasificar, es_danada, usar_regla_pudricion
 from src.vision.panel import dibujar_caja, dibujar_linea_conteo, dibujar_panel
 
 MODELO_DEFAULT = "yolo26n.pt"
@@ -176,6 +176,7 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
     (la plataforma web lo usa para mostrar el progreso). Si devuelve True, se detiene.
     """
     yolo = YOLO(modelo)
+    regla = usar_regla_pudricion(cfg, yolo.names.values())   # off si el modelo ya detecta el daño
     # Cámara (índice entero): en Windows DirectShow abre más rápido; si falla, backend por defecto
     cap = cv2.VideoCapture(fuente, cv2.CAP_DSHOW) if isinstance(fuente, int) else cv2.VideoCapture(fuente)
     if isinstance(fuente, int) and not cap.isOpened():
@@ -200,6 +201,7 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
     lado_previo = {}                # id -> signo de (centro_x - x_linea) en el frame anterior
     contadas = {}                   # id -> categoría con la que se contó al cruzar
     defecto_hist = defaultdict(list)  # id -> % de defecto por frame (pudrición)
+    clase_hist = defaultdict(list)    # id -> clase YOLO por frame (apple / damaged_apple)
     por_pudricion = set()           # ids contados como no_pasa por pudrición / daño
     n_frame, fps_suave, t_prev = 0, 0.0, time.perf_counter()
     descartadas = 0                 # detecciones incompletas no escritas al CSV
@@ -242,15 +244,16 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
                         # Sin historial: categoría provisional (no entra al historial) para
                         # no perder el cruce de línea ni el dibujo de un ID que ya existe
                         categoria_prov = clasificar(diametro_mm, hue, sat, aspecto, nombre, cfg,
-                                                    pct_defecto=pct_defecto)
+                                                    pct_defecto=pct_defecto, regla_color=regla)
                     else:
                         escritor.writerow([tid, n_frame, area_px, round(diametro_mm, 2),
                                            round(hue, 2), round(sat, 2), round(val, 2),
                                            round(aspecto, 4), nombre, round(pct_defecto, 2)])
                         categoria = clasificar(diametro_mm, hue, sat, aspecto, nombre, cfg,
-                                               pct_defecto=pct_defecto)
+                                               pct_defecto=pct_defecto, regla_color=regla)
                         historial[tid].append(categoria)
                         defecto_hist[tid].append(pct_defecto)
+                        clase_hist[tid].append(nombre)
                     categoria_estable = (Counter(historial[tid]).most_common(1)[0][0]
                                          if historial[tid] else categoria_prov)
 
@@ -258,8 +261,8 @@ def procesar(fuente, modelo: str, cfg: Config, mostrar: bool = True,
                     lado = 1 if (x1 + x2) / 2 >= x_linea else -1
                     if tid in lado_previo and lado != lado_previo[tid] and tid not in contadas:
                         contadas[tid] = categoria_estable
-                        if (categoria_estable == NO_PASA and defecto_hist[tid]
-                                and tiene_pudricion(float(np.median(defecto_hist[tid])), cfg)):
+                        if categoria_estable == NO_PASA and es_danada(clase_hist[tid], defecto_hist[tid],
+                                                                      cfg, regla):
                             por_pudricion.add(tid)
                     lado_previo[tid] = lado
 
@@ -358,6 +361,7 @@ def procesar_imagen(ruta: str, modelo: str, cfg: Config, mostrar: bool = True,
         raise RuntimeError(f"No se pudo leer la imagen: {ruta}")
 
     yolo = YOLO(modelo)
+    regla = usar_regla_pudricion(cfg, yolo.names.values())   # off si el modelo ya detecta el daño
     res = predecir_foto(yolo, frame, cfg, conf=conf, iou=iou, detalle=detalle)
     conteo, dibujos, pudricion = Counter(), [], 0
     for n, (caja, cls) in enumerate(zip(res.boxes.xyxy.cpu().numpy(),
@@ -373,9 +377,9 @@ def procesar_imagen(ruta: str, modelo: str, cfg: Config, mostrar: bool = True,
         aspecto = min(w_caja, h_caja) / max(w_caja, h_caja)
         categoria = clasificar(diametro_mm, hue, sat, aspecto, yolo.names[cls], cfg,
                                usar_calibre=False,  # foto: no se conoce px/mm
-                               pct_defecto=pct_defecto)
+                               pct_defecto=pct_defecto, regla_color=regla)
         conteo[categoria] += 1
-        pudricion += tiene_pudricion(pct_defecto, cfg)
+        pudricion += es_danada([yolo.names[cls]], [pct_defecto], cfg, regla)
         dibujos.append(((x1, y1, x2, y2), n, COLORES_BGR[categoria]))
 
     for caja, n, color in dibujos:

@@ -30,7 +30,8 @@ El productor entra gratis porque **atrae a los otros dos lados**. Un productor q
 |---|---|
 | Detector YOLO26n entrenado (mAP50 0,908, recall 0,88 en `valid`) | Hecho |
 | Tracking ByteTrack y conteo por línea (cada manzana se cuenta una vez) | Hecho, falta validar en video continuo |
-| Semáforo de calidad: calibre 65–80 mm, color, forma y pudrición | Hecho (reglas de negocio) |
+| Detección de manzanas dañadas con el modelo (clase `damaged_apple`, F1 0,88 en validación) | Hecho |
+| Semáforo de calidad: calibre 65–80 mm, color y forma | Hecho (reglas de negocio) |
 | App de escritorio para la estación de la línea (`iniciar.bat`) | Hecho |
 | **Plataforma web multi-rol**: lotes, validación, certificados y planes | **Nuevo** (`src/web/`) |
 
@@ -112,7 +113,7 @@ Los que hay que medir aparte: tasa de abandono (*churn*), paso de plan Básico a
 | **Licencia AGPL-3.0 de Ultralytics YOLO.** Ofrecerlo como servicio cerrado obliga a publicar el código bajo AGPL | Antes de cobrar: comprar la licencia Enterprise de Ultralytics, publicar el código bajo AGPL, o migrar a un detector con licencia permisiva y reentrenar |
 | **Precisión no validada en la línea.** El conteo con tracking aún no se comparó con un conteo manual en video continuo | Piloto con conteo manual. La plataforma ya registra el error de cada lote validado |
 | **Calibración por línea.** Si la cámara se mueve, el calibre (mm) deja de ser confiable | Calibrar en la instalación y recalibrar en cada mantención (botón «Calibrar» de la app de escritorio) |
-| **La calidad sale de reglas, no de un modelo entrenado con etiquetas reales** | Presentarla como apoyo a la inspección. Reentrenar con etiquetas propias y recuperar la clase `damaged_apple` (708 objetos del dataset 2) |
+| **El daño se aprendió con fotos de montones, no de la cinta** | El modelo de 2 clases ya detecta el daño (F1 0,88 en validación, contra 0,34 de la regla de color). Falta etiquetar manzanas dañadas en video propio de la cinta. Mientras tanto, presentarlo como apoyo a la inspección |
 | **El certificado no es oficial** | Indicar siempre que es un informe de conteo y calidad visual que **no reemplaza la inspección del SAG** |
 | Estacionalidad de la cosecha | Planes anuales con descuento. La fruta guardada en frío se embala durante varios meses |
 | Licencias de datos | Dataset 1: dominio público. Dataset 2: CC BY 4.0, uso comercial permitido dando crédito al autor |
@@ -122,5 +123,5 @@ Los que hay que medir aparte: tasa de abandono (*churn*), paso de plan Básico a
 1. **Piloto** en una planta (1 línea, 4 semanas): grabar video propio, ingresar conteos manuales y medir el error con `validar_conteo` y con la validación del jefe de planta.
 2. **Decidir la licencia** del detector (Enterprise, AGPL o migrar).
 3. **Producto:** conteo en vivo con cámara desde la web (equipo en la línea), certificado en PDF con código QR e integración con el sistema de gestión del packing.
-4. **Modelo:** reentrenar con datos de la planta y entrenar la calidad (Random Forest o XGBoost) con etiquetas reales en vez de reglas.
+4. **Modelo:** el daño ya lo detecta el modelo de 2 clases. Falta reentrenar con video de la planta y entrenar el resto de la calidad (calibre y color) con etiquetas reales, por ejemplo con Random Forest o XGBoost.
 5. **Validar precios** con al menos 10 entrevistas a packings, productores y exportadoras.
