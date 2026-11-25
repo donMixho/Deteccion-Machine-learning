@@ -21,6 +21,8 @@
     {% if ok %}
     <div><dt>Autorización</dt><dd class="mono">{{ pago.autorizacion }}</dd></div>
     <div><dt>Tarjeta</dt><dd class="mono">•••• {{ pago.tarjeta }}</dd></div>
+    <div><dt>Medio de pago</dt><dd>{{ TIPOS_PAGO.get(pago.tipo_pago, pago.tipo_pago or '—') }}</dd></div>
+    {% if pago.cuotas %}<div><dt>Cuotas</dt><dd>{{ pago.cuotas }}</dd></div>{% endif %}
     {% endif %}
   </dl>
   <div class="desglose">

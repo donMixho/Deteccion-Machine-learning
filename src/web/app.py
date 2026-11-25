@@ -92,9 +92,12 @@ def create_app(config: dict = None) -> Flask:
         ANALIZADOR=None,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
+        # URL pública (https) del sitio: Webpay vuelve a ella. Ej.: https://app.midominio.cl
+        URL_PUBLICA=(os.environ.get("APPLEVISION_URL_PUBLICA") or "").rstrip("/"),
     )
     if config:
         app.config.update(config)
+    app.config["SESSION_COOKIE_SECURE"] = app.config["URL_PUBLICA"].startswith("https://")
     app.secret_key = _clave_secreta(datos)
     (datos / "analisis").mkdir(parents=True, exist_ok=True)
 

@@ -56,6 +56,11 @@ BENEFICIOS = {
 }
 
 IVA = 0.19
+# Código de medio de pago que informa Webpay Plus
+TIPOS_PAGO = {"VD": "Débito (Redcompra)", "VN": "Crédito", "VC": "Crédito en cuotas",
+              "SI": "Crédito en 3 cuotas sin interés", "S2": "Crédito en 2 cuotas sin interés",
+              "NC": "Crédito en cuotas sin interés"}
+MINUTOS_PAGO_PENDIENTE = 60   # un pago que nunca volvió del banco se da por anulado
 DIAS_PLAN = 30          # vigencia de un plan pagado con Webpay
 
 

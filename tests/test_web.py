@@ -438,6 +438,38 @@ class PruebaWeb(unittest.TestCase):
         self.assertIn("No pudimos conectar con Webpay", r.get_data(as_text=True))
         self.assertEqual(self.uno("SELECT estado FROM pagos")["estado"], "error")
 
+    def test_url_publica_define_la_url_de_retorno_del_banco(self):
+        self.app.config["URL_PUBLICA"] = "https://app.ejemplo.cl"
+        self.iniciar_pago()
+        self.assertEqual(self.app.config["WEBPAY"].creadas[0]["url_retorno"], "https://app.ejemplo.cl/pagos/retorno")
+
+    def test_produccion_exige_https_para_cobrar(self):
+        self.app.config["WEBPAY"].es_prueba = False
+        self.app.config["URL_PUBLICA"] = "http://app.ejemplo.cl"
+        _, pago = self.iniciar_pago()
+        self.assertIsNone(pago)                                     # no se creó ningún cobro
+        self.assertEqual(self.app.config["WEBPAY"].creadas, [])
+        self.app.config["URL_PUBLICA"] = "https://app.ejemplo.cl"
+        _, pago = self.iniciar_pago()
+        self.assertEqual(pago["estado"], "pendiente")
+
+    def test_pago_que_nunca_volvio_del_banco_se_anula(self):
+        _, pago = self.iniciar_pago()
+        con = self.db()
+        con.execute("UPDATE pagos SET creado_en = '2020-01-01T00:00:00' WHERE id = ?", (pago["id"],))
+        con.commit()
+        con.close()
+        self.c.get("/productor/plan")
+        self.assertEqual(self.uno("SELECT estado FROM pagos WHERE id = ?", (pago["id"],))["estado"], "anulado")
+
+    def test_comprobante_muestra_medio_de_pago_y_cuotas(self):
+        _, pago = self.iniciar_pago()
+        self.app.config["WEBPAY"].respuesta = {"payment_type_code": "VC", "installments_number": 3}
+        self.volver_del_banco(token_ws="tok1")
+        html = self.c.get(f"/pagos/{pago['id']}").get_data(as_text=True)
+        self.assertIn("Crédito en cuotas", html)
+        self.assertIn("Cuotas", html)
+
     def test_cliente_webpay_usa_integracion_por_defecto_y_exige_llaves_en_produccion(self):
         from src.web.webpay import ClienteWebpay
         c = ClienteWebpay(ambiente="integracion")

@@ -6,7 +6,8 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 
 from src.web.auth import rol_requerido, usuario_actual
 from src.web.db import get_db, todos, uno
-from src.web.negocio import DIAS_PLAN, PLANES, ahora_iso, con_iva, planes_para
+from src.web.negocio import (DIAS_PLAN, MINUTOS_PAGO_PENDIENTE, PLANES, TIPOS_PAGO, ahora_iso, con_iva,
+                             planes_para)
 from src.web.webpay import ClienteWebpay, ErrorWebpay
 
 bp = Blueprint("pagos", __name__, url_prefix="/pagos")
@@ -30,9 +31,21 @@ def webpay_listo():
         return False, False
 
 
+def url_retorno() -> str:
+    """URL a la que Webpay devuelve al usuario: la pública configurada, o la de esta petición."""
+    publica = current_app.config.get("URL_PUBLICA")
+    return publica + url_for("pagos.retorno") if publica else url_for("pagos.retorno", _external=True)
+
+
 def vencer_planes() -> None:
-    """Un plan pagado que llegó a su fecha de vencimiento vuelve al plan gratuito de su tipo."""
+    """Un plan pagado que llegó a su fecha de vencimiento vuelve al plan gratuito de su tipo.
+
+    También anula los pagos que quedaron abiertos (el usuario cerró el navegador en el banco)."""
     con = get_db()
+    limite = (datetime.now() - timedelta(minutes=MINUTOS_PAGO_PENDIENTE)).isoformat(timespec="seconds")
+    con.execute("UPDATE pagos SET estado = 'anulado', resuelto_en = ? WHERE estado = 'pendiente' AND creado_en < ?",
+                (ahora_iso(), limite))
+    con.commit()
     vencidas = con.execute("SELECT id, tipo FROM empresas WHERE plan_vence IS NOT NULL AND plan_vence < ?",
                            (ahora_iso(),)).fetchall()
     for e in vencidas:
@@ -83,6 +96,12 @@ def iniciar():
         flash("Tu empresa ya tiene este plan sin vencimiento.", "info")
         return redirect(url_for("productor.plan"))
 
+    retorno = url_retorno()
+    if not cliente().es_prueba and not retorno.startswith("https://"):
+        current_app.logger.error("Webpay producción exige HTTPS: define APPLEVISION_URL_PUBLICA=https://...")
+        flash("El pago en línea no está disponible por ahora. Contacta a soporte.", "error")
+        return redirect(url_for("productor.plan"))
+
     montos = con_iva(plan["precio"])
     con = get_db()
     buy_order = f"AV{secrets.token_hex(6).upper()}"                      # máx. 26 caracteres en Webpay
@@ -93,7 +112,7 @@ def iniciar():
     con.commit()
     try:
         tx = cliente().crear(buy_order, f"e{usuario['empresa_id']}-u{usuario['id']}", montos["total"],
-                             url_for("pagos.retorno", _external=True))
+                             retorno)
         con.execute("UPDATE pagos SET token = ? WHERE id = ?", (tx["token"], pago_id))
         con.commit()
     except (ErrorWebpay, KeyError) as e:
@@ -150,7 +169,7 @@ def resultado(pago_id):
     if pago is None:
         abort(404)
     return render_template("pagos/resultado.html", pago=pago, plan=PLANES[pago["plan"]],
-                           ESTADOS_PAGO=ESTADOS_PAGO, iva=pago["monto"] - pago["neto"],
+                           ESTADOS_PAGO=ESTADOS_PAGO, TIPOS_PAGO=TIPOS_PAGO, iva=pago["monto"] - pago["neto"],
                            vence=uno("SELECT plan_vence FROM empresas WHERE id = ?", (usuario["empresa_id"],))["plan_vence"])
 
 

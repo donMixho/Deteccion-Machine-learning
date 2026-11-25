@@ -13,6 +13,7 @@ Con el entorno ya instalado (ver [Instalación](#instalación)):
 | Quiero… | Cómo |
 |---|---|
 | Usar la app de escritorio | Doble clic en `iniciar.bat` |
+| Ejecutar, reentrenar o instalar el modelo | Doble clic en `modelo.bat` (menú; si falta `models/best.pt`, usa la opción 5 o la 3) |
 | Abrir la plataforma web | Doble clic en `iniciar_web.bat` y entrar a http://127.0.0.1:5000 |
 | Contar las manzanas de una foto | `python -m src.vision.detector --modelo models/best.pt --foto ruta/foto.jpg` |
 | Medir el conteo del modelo | `python -m src.vision.validar_fotos --split test` |
@@ -33,7 +34,7 @@ Los comandos `python -m …` suponen el entorno activado (`.venv\Scripts\activat
 - **Pagos con Webpay Plus:** el productor paga el plan Pro desde "Mi plan" (neto + IVA 19 %), y el plan se activa por 30 días. Ver [Pagos con Webpay](#pagos-con-webpay).
 - **Respaldo en S3:** al terminar un análisis, el resultado se sube a S3 si hay bucket configurado; si no, queda solo en local. Ver [Respaldo en S3](#respaldo-en-s3).
 - **Diseño corporativo:** paleta azul marino en modo claro y oscuro, y portada con menos texto.
-- **Pruebas:** 56 en total (18 nuevas de Webpay y S3). Ver [Pruebas](#pruebas).
+- **Pruebas:** 60 en total (22 nuevas de Webpay y S3). Ver [Pruebas](#pruebas).
 
 ## Objetivo del primer paso
 Construir un modelo de visión (YOLO) que **detecte y cuente manzanas sueltas** que pasan frente a una cámara, como en una cinta transportadora.
@@ -322,7 +323,9 @@ El productor entra a **Mi plan**, ve el desglose (neto, IVA 19 % y total; el Pro
 
 Sin configurar nada se usa el **ambiente de integración** de Transbank, sin cobros reales. Datos de prueba: tarjeta VISA `4051 8856 0044 6623`, CVV `123`, cualquier fecha futura; en el formulario del banco, RUT `11.111.111-1` y clave `123`.
 
-Para producción, define en `.env` (o en el entorno): `WEBPAY_AMBIENTE=produccion`, `WEBPAY_CODIGO_COMERCIO` y `WEBPAY_API_KEY`, con las credenciales que entrega Transbank. El retorno del banco no lleva sesión ni CSRF: se protege porque cada pago se valida con Transbank usando un token que solo conoce el servidor. En producción, `return_url` necesita una URL pública con HTTPS.
+Para producción, define en `.env` (o en el entorno): `WEBPAY_AMBIENTE=produccion`, `WEBPAY_CODIGO_COMERCIO` y `WEBPAY_API_KEY`, con las credenciales que entrega Transbank. El retorno del banco no lleva sesión ni CSRF: se protege porque cada pago se valida con Transbank usando un token que solo conoce el servidor. Además define `APPLEVISION_URL_PUBLICA` con la dirección pública del sitio (por ejemplo `https://app.midominio.cl`): Webpay devuelve al usuario ahí. En producción la app **se niega a cobrar si esa URL no es HTTPS**, y activa la cookie de sesión segura. Los pagos que no vuelven del banco en 60 minutos se anulan solos.
+
+Para cobrar de verdad, Transbank exige antes validar el comercio (credenciales de producción y revisión del sitio). El comprobante ya muestra orden, autorización, últimos 4 dígitos, medio de pago, cuotas y monto, que es lo que piden. Falta el reembolso (anulación) desde la plataforma.
 
 ### Respaldo en S3
 Al terminar un análisis, la cola web sube a S3 el resultado anotado, la miniatura y `metricas.csv` (`<s3_prefix>analisis/<id>/`). La CLI del detector hace lo mismo con el archivo de `--guardar`. Se activa completando `s3_bucket` en `config.yaml` y las credenciales AWS en `.env`.
@@ -337,6 +340,7 @@ Es un respaldo, no una dependencia: sin bucket, sin credenciales o con S3 caído
 | `APPLEVISION_SECRET` | Clave de sesión fija (si no se define, se crea una en `web_data/.clave_secreta`) |
 | `WEBPAY_AMBIENTE` | `integracion` (por defecto, sin cobros) o `produccion` |
 | `WEBPAY_CODIGO_COMERCIO`, `WEBPAY_API_KEY` | Credenciales de Transbank (obligatorias en producción) |
+| `APPLEVISION_URL_PUBLICA` | URL pública con HTTPS a la que vuelve Webpay (obligatoria para cobrar en producción) |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciales para el respaldo en S3 |
 
 ## Pruebas
@@ -346,7 +350,7 @@ python -m unittest discover -s tests -v    # o: python -m pytest tests -q
 | Archivo | Pruebas | Qué cubre |
 |---|---:|---|
 | `tests/test_foto_detalle.py` | 6 | Coordenadas y fusión de cajas del análisis de fotos por zonas |
-| `tests/test_web.py` | 34 | Roles y permisos, aislamiento entre empresas, CSRF, flujo de lote a certificado, cuotas, cambio de plan, CSV, manejo de errores y pagos con Webpay (con Transbank simulado) |
+| `tests/test_web.py` | 38 | Roles y permisos, aislamiento entre empresas, CSRF, flujo de lote a certificado, cuotas, cambio de plan, CSV, manejo de errores y pagos con Webpay (con Transbank simulado) |
 | `tests/test_s3.py` | 6 | Respaldo en S3: sin bucket, con bucket, S3 caído y cola de análisis con fallback local |
 | `tests/test_validar_fotos.py` | 1 | El validador omite las fotos sin etiqueta |
 | `tests/test_clasificador.py` | 5 | Regla de pudrición según el modelo (`regla_pudricion`), daño por clase y lectura de `config.yaml` |
