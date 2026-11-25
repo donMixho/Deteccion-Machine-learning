@@ -30,7 +30,10 @@ Los comandos `python -m …` suponen el entorno activado (`.venv\Scripts\activat
 - **Detector:** `procesar()` acepta `al_frame` (avance por frame) y guarda en WebM cuando `--guardar` termina en `.webm`, para ver el video en el navegador. El conteo no cambia y la app de escritorio funciona igual.
 - **`validar_fotos`:** omite las fotos sin etiqueta en vez de fallar (ver [Datos](#datos)).
 - **Video de prueba:** `python -m src.web.demo` arma `reports/cinta_demo.mp4` con los frames de cinta del dataset.
-- **Pruebas:** 32 nuevas (38 en total). Ver [Pruebas](#pruebas).
+- **Pagos con Webpay Plus:** el productor paga el plan Pro desde "Mi plan" (neto + IVA 19 %), y el plan se activa por 30 días. Ver [Pagos con Webpay](#pagos-con-webpay).
+- **Respaldo en S3:** al terminar un análisis, el resultado se sube a S3 si hay bucket configurado; si no, queda solo en local. Ver [Respaldo en S3](#respaldo-en-s3).
+- **Diseño corporativo:** paleta azul marino en modo claro y oscuro, y portada con menos texto.
+- **Pruebas:** 56 en total (18 nuevas de Webpay y S3). Ver [Pruebas](#pruebas).
 
 ## Objetivo del primer paso
 Construir un modelo de visión (YOLO) que **detecte y cuente manzanas sueltas** que pasan frente a una cámara, como en una cinta transportadora.
@@ -103,7 +106,7 @@ src/
   app.py                      app de escritorio (elegir cámara, video o foto)
   vision/                     detector, panel en vivo, calibrador, clasificador, validadores, comparar_modelos
   ml/                         features, train, evaluate, optimize
-  utils/                      config, s3_helper
+  utils/                      config, s3_helper (respaldo en S3 con fallback local)
   web/                        plataforma web con roles (Flask + SQLite)
     templates/  static/       páginas HTML, estilos y JavaScript
 tests/                        pruebas (unittest)
@@ -127,11 +130,11 @@ ANALISIS_PROYECTO.md          análisis del estado del proyecto
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 pip install -r requirements.txt
-cp .env.example .env          # solo si se usará S3 o Roboflow
+cp .env.example .env          # solo si se usará S3, Roboflow o Webpay en producción
 ```
 Si usas Roboflow, guarda la clave en `.env` (`ROBOFLOW_API_KEY=...`). No la compartas ni la subas a git.
 
-La plataforma web solo necesita Flask (incluido en `requirements.txt`). La base de datos es SQLite, que viene con Python.
+La plataforma web necesita Flask y requests (incluidos en `requirements.txt`). La base de datos es SQLite, que viene con Python.
 
 **Si mueves la carpeta del proyecto**, los comandos `yolo`, `jupyter`, `mlflow` y `pip` del entorno dejan de funcionar sin mostrar error, porque guardan la ruta antigua de Python. Usa `python -m pip`, `python -m jupyter` o `python -m mlflow`, o vuelve a crear el entorno. Para entrenar, usa los scripts de `scripts/`, que no dependen de `yolo.exe`.
 
@@ -283,7 +286,7 @@ Si el jefe de planta rechaza el lote (con un motivo obligatorio), el operador su
 - Evidencia por lote: foto o video anotado, conteo por categoría y porcentajes de Buena / Con detalle / No pasa.
 - Validación: el jefe de planta ingresa un conteo manual y la plataforma registra el error del modelo, que es la verdad de terreno que le falta al proyecto.
 - Certificado con código único, verificable sin cuenta e imprimible.
-- Planes y cuotas: el plan Básico permite 10 análisis rápidos al mes (un análisis fallido no se cuenta). El productor puede pedir el plan Pro y el administrador lo aprueba desde su panel.
+- Planes y cuotas: el plan Básico permite 10 análisis rápidos al mes (un análisis fallido no se cuenta). El productor paga el plan Pro con Webpay (ver [Pagos con Webpay](#pagos-con-webpay)); volver al plan Básico sigue siendo una solicitud que aprueba el administrador.
 - Paneles por rol con gráficos, descarga CSV (según el plan), modo claro u oscuro y diseño para celular.
 - Funciona sin internet: no usa librerías externas en el navegador.
 
@@ -296,8 +299,10 @@ La primera vez se crean 8 empresas, una cuenta por rol, 9 lotes en todos los est
 | `src/web/negocio.py` | Reglas del negocio: roles, planes, precios, cuotas y códigos de lote y certificado |
 | `src/web/app.py` | Crea la app Flask: configuración, menú por rol, protección CSRF y formatos chilenos |
 | `src/web/auth.py` | Ingreso, salida, accesos de demostración y control de acceso por rol |
-| `src/web/db.py` | Esquema SQLite: empresas, usuarios, lotes, análisis y solicitudes |
-| `src/web/analisis.py` | Cola en segundo plano que llama a `src.vision.detector` (un análisis a la vez) |
+| `src/web/db.py` | Esquema SQLite: empresas, usuarios, lotes, análisis, solicitudes y pagos |
+| `src/web/webpay.py` | Cliente de Webpay Plus (API REST de Transbank, sin SDK) |
+| `src/web/rutas_pagos.py` | Inicio del pago, retorno del banco, activación y vencimiento del plan |
+| `src/web/analisis.py` | Cola en segundo plano que llama a `src.vision.detector` (un análisis a la vez) y respalda el resultado en S3 |
 | `src/web/rutas_*.py` | Páginas de cada rol, lotes compartidos y páginas públicas |
 | `src/web/graficos.py`, `iconos.py` | Gráficos e íconos en HTML y SVG |
 | `src/web/demo.py` | Datos de demostración y video de prueba |
@@ -312,21 +317,37 @@ Los datos quedan en `web_data/`: la base `applevision.db` y una carpeta por aná
 - Las fotos y los videos solo se entregan a quien puede ver el lote.
 - El servidor incluido es de desarrollo. Para producción hace falta un servidor WSGI (por ejemplo, waitress), HTTPS y `--sin-demo`.
 
+### Pagos con Webpay
+El productor entra a **Mi plan**, ve el desglose (neto, IVA 19 % y total; el Pro cuesta $9.990 + IVA = $11.888) y paga con Webpay Plus. Al volver del banco, la plataforma confirma la transacción con Transbank, valida monto y orden, y activa el plan por 30 días. También hay renovación, historial de pagos y vencimiento: un plan vencido vuelve al gratuito.
+
+Sin configurar nada se usa el **ambiente de integración** de Transbank, sin cobros reales. Datos de prueba: tarjeta VISA `4051 8856 0044 6623`, CVV `123`, cualquier fecha futura; en el formulario del banco, RUT `11.111.111-1` y clave `123`.
+
+Para producción, define en `.env` (o en el entorno): `WEBPAY_AMBIENTE=produccion`, `WEBPAY_CODIGO_COMERCIO` y `WEBPAY_API_KEY`, con las credenciales que entrega Transbank. El retorno del banco no lleva sesión ni CSRF: se protege porque cada pago se valida con Transbank usando un token que solo conoce el servidor. En producción, `return_url` necesita una URL pública con HTTPS.
+
+### Respaldo en S3
+Al terminar un análisis, la cola web sube a S3 el resultado anotado, la miniatura y `metricas.csv` (`<s3_prefix>analisis/<id>/`). La CLI del detector hace lo mismo con el archivo de `--guardar`. Se activa completando `s3_bucket` en `config.yaml` y las credenciales AWS en `.env`.
+
+Es un respaldo, no una dependencia: sin bucket, sin credenciales o con S3 caído, los archivos quedan en `web_data/` y el análisis termina igual.
+
 ### Variables de entorno
 | Variable | Para qué |
 |---|---|
 | `APPLEVISION_DATOS` | Carpeta de datos de la web (por defecto `web_data/`) |
 | `APPLEVISION_DEMO=0` | Desactiva las cuentas y los accesos de demostración |
 | `APPLEVISION_SECRET` | Clave de sesión fija (si no se define, se crea una en `web_data/.clave_secreta`) |
+| `WEBPAY_AMBIENTE` | `integracion` (por defecto, sin cobros) o `produccion` |
+| `WEBPAY_CODIGO_COMERCIO`, `WEBPAY_API_KEY` | Credenciales de Transbank (obligatorias en producción) |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | Credenciales para el respaldo en S3 |
 
 ## Pruebas
 ```bash
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests -v    # o: python -m pytest tests -q
 ```
 | Archivo | Pruebas | Qué cubre |
 |---|---:|---|
 | `tests/test_foto_detalle.py` | 6 | Coordenadas y fusión de cajas del análisis de fotos por zonas |
-| `tests/test_web.py` | 22 | Roles y permisos, aislamiento entre empresas, CSRF, flujo de lote a certificado, cuotas, cambio de plan, CSV y manejo de errores |
+| `tests/test_web.py` | 34 | Roles y permisos, aislamiento entre empresas, CSRF, flujo de lote a certificado, cuotas, cambio de plan, CSV, manejo de errores y pagos con Webpay (con Transbank simulado) |
+| `tests/test_s3.py` | 6 | Respaldo en S3: sin bucket, con bucket, S3 caído y cola de análisis con fallback local |
 | `tests/test_validar_fotos.py` | 1 | El validador omite las fotos sin etiqueta |
 | `tests/test_clasificador.py` | 5 | Regla de pudrición según el modelo (`regla_pudricion`), daño por clase y lectura de `config.yaml` |
 | `tests/test_validar_danio.py` | 4 | Lectura de etiquetas, IoU, emparejamiento y métricas del evaluador de daño |
