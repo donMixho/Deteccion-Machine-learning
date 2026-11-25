@@ -149,3 +149,26 @@ del equipo y marcar Buscar manzanas pequeñas antes de iniciar el análisis.
 En la CLI del detector, añadir --detalle-foto junto a --foto. Pasaron seis
 pruebas de fusión de cajas, coordenadas, objetos distintos, bordes internos y
 reales, salida vacía y modo normal. Se comprobó también la opción en la interfaz.
+
+## Modelo de 2 clases (24/11/2026)
+
+Se reentrenó YOLO26n con dos clases, apple y damaged_apple, con la misma receta y
+el mismo perfil de inferencia en fotos (confianza 0.35, IoU 0.35). Ahora es
+models/best.pt; el anterior quedó en models/best_1clase.pt.
+
+| Conjunto | Modelo | MAE | Exceso acumulado | Omisiones acumuladas | Conteos exactos |
+|---|---|---:|---:|---:|---:|
+| valid (190) | 1 clase | 0.947 | 109 | 71 | 124 |
+| valid (190) | 2 clases | 0.816 | 89 | 66 | 121 |
+| test (36) | 1 clase | 0.694 | 13 | 12 | 20 |
+| test (36) | 2 clases | 0.583 | 15 | 6 | 21 |
+
+El modelo nuevo reduce el error medio en ambos conjuntos. validar_fotos omite
+ahora, con un aviso, las 58 fotos de Pexels sin etiqueta de images/test. La
+detección de daño se evalúa aparte con python -m src.vision.validar_danio
+(ver README.md, sección Resultados).
+
+```bash
+./.venv/Scripts/python.exe -m src.vision.validar_fotos --split test --modelo models/best_1clase.pt
+./.venv/Scripts/python.exe -m src.vision.validar_fotos --split test --modelo models/best.pt
+```

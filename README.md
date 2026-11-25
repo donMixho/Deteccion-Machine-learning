@@ -3,7 +3,7 @@ Sistema inteligente de clasificación y conteo de manzanas para plantas de embal
 Proyecto MLY1101 — Machine Learning | DUOC UC
 
 El proyecto tiene tres partes:
-- **Modelo de visión:** detector YOLO entrenado que cuenta y clasifica manzanas en foto, video o cámara.
+- **Modelo de visión:** detector YOLO de 2 clases (manzana sana y dañada) que cuenta y clasifica manzanas en foto, video o cámara.
 - **App de escritorio** para la estación de la línea (`iniciar.bat`).
 - **Plataforma web con roles** que implementa el [modelo de negocio](MODELO_NEGOCIO.md): el packing analiza cada lote, el jefe de planta lo certifica, y el productor y la exportadora ven el resultado (`iniciar_web.bat`).
 
@@ -16,17 +16,21 @@ Con el entorno ya instalado (ver [Instalación](#instalación)):
 | Abrir la plataforma web | Doble clic en `iniciar_web.bat` y entrar a http://127.0.0.1:5000 |
 | Contar las manzanas de una foto | `python -m src.vision.detector --modelo models/best.pt --foto ruta/foto.jpg` |
 | Medir el conteo del modelo | `python -m src.vision.validar_fotos --split test` |
+| Ver la mejora del modelo nuevo | `python -m src.vision.comparar_modelos` (imágenes lado a lado en `reports/`) |
 | Correr las pruebas | `python -m unittest discover -s tests -v` |
 
 Los comandos `python -m …` suponen el entorno activado (`.venv\Scripts\activate`). Sin activarlo, usa `.venv\Scripts\python.exe` en lugar de `python`.
 
 ## Novedades (noviembre 2026)
+- **Modelo de 2 clases** (`apple` / `damaged_apple`): detecta las manzanas dañadas con F1 0,88, contra 0,34 de la regla de color, y además cuenta mejor (error medio en test: 0,583 contra 0,694). Ya es `models/best.pt`; el anterior quedó en `models/best_1clase.pt`. Ver [Resultados](#resultados).
+- **`regla_pudricion`** en `config.yaml`: en modo `auto`, la regla de color para pudrición se apaga cuando el modelo detecta el daño, porque confunde sombras con pudrición.
+- **Scripts nuevos:** `scripts/preparar_dataset_2clases.py`, `scripts/entrenar_2clases.py`, `python -m src.vision.validar_danio` y `python -m src.vision.comparar_modelos`, que arma comparaciones lado a lado como las de [Resultados](#resultados).
 - **Modelo de negocio** en [MODELO_NEGOCIO.md](MODELO_NEGOCIO.md): servicio por suscripción para packings, productores y exportadoras.
 - **Plataforma web con 5 roles** en `src/web/`: recepción de lotes, análisis en segundo plano con el mismo detector, validación con conteo manual, certificados verificables, planes y cuotas. Ver [Plataforma web con roles](#plataforma-web-con-roles).
 - **Detector:** `procesar()` acepta `al_frame` (avance por frame) y guarda en WebM cuando `--guardar` termina en `.webm`, para ver el video en el navegador. El conteo no cambia y la app de escritorio funciona igual.
 - **`validar_fotos`:** omite las fotos sin etiqueta en vez de fallar (ver [Datos](#datos)).
 - **Video de prueba:** `python -m src.web.demo` arma `reports/cinta_demo.mp4` con los frames de cinta del dataset.
-- **Pruebas:** 23 nuevas en `tests/test_web.py` y `tests/test_validar_fotos.py` (29 en total).
+- **Pruebas:** 32 nuevas (38 en total). Ver [Pruebas](#pruebas).
 
 ## Objetivo del primer paso
 Construir un modelo de visión (YOLO) que **detecte y cuente manzanas sueltas** que pasan frente a una cámara, como en una cinta transportadora.
@@ -66,7 +70,7 @@ Se usan dos datasets públicos de Roboflow Universe, en formato **YOLOv8** (una 
 
 **Limitaciones conocidas**
 - Dataset 1: todos los frames salen de un solo video, así que son muy parecidos entre sí. Tiene marca de agua (`clideo.com`) y desenfoque por movimiento.
-- Dataset 2: no es de cinta; sirve para que el modelo aprenda cómo se ve una manzana.
+- Dataset 2: no es de cinta; sirve para que el modelo aprenda cómo se ve una manzana. Varias de sus fotos vienen de bancos de imágenes y tienen marcas de agua (Shutterstock, iStock, Getty).
 - Hay muchas más imágenes de montones (697) que de cinta (61). Las métricas de `valid` y `test` reflejan sobre todo montones, no la cinta.
 
 **Fotos sin etiqueta en `images/test`.** El commit `2ed0d44` agregó 58 fotos de Pexels sin etiquetas (8 `prueba_*` y 50 `extra_pexels_*`; créditos en `FUENTES.md` y `FUENTES_ADICIONALES.md`). Sirven para probar el modelo con fotos nuevas, pero no para medirlo:
@@ -80,31 +84,33 @@ Se usan dos datasets públicos de Roboflow Universe, en formato **YOLOv8** (una 
 - Se fusionaron en `images/`. Las imágenes del dataset 2 llevan el prefijo `as_`.
 - Se unificaron las clases: `apple_a` y `damaged_apple` pasan a `apple`.
 - El dataset 2 original, con sus 2 clases, se conserva en `data/01_raw/apple_sorting_original/`.
+- Para el modelo de 2 clases, `scripts/preparar_dataset_2clases.py` recupera `damaged_apple` desde ese original, sin tocar `images/`. Las cajas son idénticas; solo cambia la clase.
 
-Resultado en `images/`: 758 imágenes etiquetadas (train 532 / valid 190 / test 36) y 2.223 manzanas en una clase.
+Resultado en `images/`: 758 imágenes etiquetadas (train 532 / valid 190 / test 36) y 2.978 manzanas: 2.270 sanas y 708 dañadas (train 2.065 / valid 745 / test 168).
 
 ## Estructura del proyecto
 ```
-images/                       dataset actual (YOLO, 1 clase)
+images/                       dataset actual (YOLO, 1 clase; el de 2 clases se arma con un script)
   train|valid|test/images     imágenes (test incluye además 58 fotos de Pexels sin etiqueta)
   train|valid|test/labels     etiquetas
   data.yaml                   configuración del dataset
 data/
   01_raw/                     datasets originales
     apple_sorting_original/   dataset 2 con sus 2 clases
-  02_processed/               salida del pipeline (metricas.csv)
+  02_processed/               salida del pipeline (metricas.csv) y dataset_2clases/ (generado; no va a git)
   03_features/                features para ML
 src/
   app.py                      app de escritorio (elegir cámara, video o foto)
-  vision/                     detector, panel en vivo, calibrador, clasificador, validar_conteo, validar_fotos
+  vision/                     detector, panel en vivo, calibrador, clasificador, validadores, comparar_modelos
   ml/                         features, train, evaluate, optimize
   utils/                      config, s3_helper
   web/                        plataforma web con roles (Flask + SQLite)
     templates/  static/       páginas HTML, estilos y JavaScript
 tests/                        pruebas (unittest)
+docs/img/                     imágenes del README (comparación de modelos)
 notebooks/                    01_eda, 02_models, 03_optimization
-scripts/                      descargar y comprimir dataset
-models/                       pesos entrenados (best.pt)
+scripts/                      descargar, comprimir y preparar el dataset; entrenar el modelo de 2 clases
+models/                       pesos entrenados: best.pt (2 clases) y best_1clase.pt (anterior); no van a git
 config/bytetrack_apple.yaml   ajustes del tracker
 reports/                      informes, gráficos y videos de prueba (no va a git)
 web_data/                     base de datos y archivos de la web (se crea al iniciarla; no va a git)
@@ -126,6 +132,8 @@ cp .env.example .env          # solo si se usará S3 o Roboflow
 Si usas Roboflow, guarda la clave en `.env` (`ROBOFLOW_API_KEY=...`). No la compartas ni la subas a git.
 
 La plataforma web solo necesita Flask (incluido en `requirements.txt`). La base de datos es SQLite, que viene con Python.
+
+**Si mueves la carpeta del proyecto**, los comandos `yolo`, `jupyter`, `mlflow` y `pip` del entorno dejan de funcionar sin mostrar error, porque guardan la ruta antigua de Python. Usa `python -m pip`, `python -m jupyter` o `python -m mlflow`, o vuelve a crear el entorno. Para entrenar, usa los scripts de `scripts/`, que no dependen de `yolo.exe`.
 
 ## Uso: app de escritorio y terminal
 
@@ -184,9 +192,24 @@ El modo foto usa una sensibilidad inicial de 65 % y NMS IoU 0.35; la sensibilida
 ```bash
 python -m src.vision.validar_fotos --split test --salida reports/validacion_fotos_test.csv
 ```
-Resultado actual en las 36 fotos etiquetadas de test: error absoluto medio de 0,694 manzanas por foto y 20 conteos exactos. Las fotos sin etiqueta se omiten con un aviso. Ver [VALIDACION_FOTOS.md](VALIDACION_FOTOS.md) para resultados, limitaciones, créditos de fotos externas y comandos reproducibles.
+Resultado actual en las 36 fotos etiquetadas de test, con el modelo de 2 clases: error absoluto medio de 0,583 manzanas por foto y 21 conteos exactos (el modelo anterior: 0,694 y 20). Las fotos sin etiqueta se omiten con un aviso. Ver [VALIDACION_FOTOS.md](VALIDACION_FOTOS.md) para resultados, limitaciones, créditos de fotos externas y comandos reproducibles.
 
 La opción **Buscar manzanas pequeñas (solo fotos; tarda más)** analiza zonas solapadas y fusiona las cajas. Se activa manualmente: recupera algunas manzanas omitidas, pero puede aumentar el exceso de conteo. Ver las métricas y el caso de prueba en VALIDACION_FOTOS.md.
+
+### Validar la detección de daño
+```bash
+python -m src.vision.validar_danio --split valid
+python -m src.vision.validar_danio --split valid --modelos models/best_1clase.pt models/best.pt   # comparar modelos
+```
+Empareja cada detección con las manzanas etiquetadas (IoU ≥ 0,5) y mide precisión, recall y F1 de "dañada" para cada método: la regla de color, la clase del modelo, ambas juntas y el semáforo «No pasa» tal como lo calcula la app. Requiere el dataset de 2 clases y escribe `reports/validacion_danio.csv`.
+
+### Comparar modelos lado a lado
+```bash
+python -m src.vision.comparar_modelos                                # dos fotos de validación -> reports/comparacion_modelos/
+python -m src.vision.comparar_modelos --fotos ruta/foto1.jpg ruta/foto2.jpg
+python -m src.vision.comparar_modelos --antes models/best_1clase.pt --ahora models/best.pt --salida docs/img
+```
+Arma una imagen por foto con el resultado de cada modelo ("antes" y "ahora"), aplicados como en la app. Si la foto está en el dataset de 2 clases, el pie indica cuántas manzanas sanas y dañadas tiene etiquetadas.
 
 ### Validar el conteo contra un conteo manual
 ```bash
@@ -197,13 +220,27 @@ python -m src.vision.validar_conteo --manifiesto reports/verdad_terreno.csv   # 
 Compara el conteo automático con el manual y muestra el error por video, el error absoluto medio y el desvío global por posición de línea. Escribe `reports/validacion_conteo.csv` y no toca `metricas.csv`. Hay que usar un **video continuo**: una carpeta de frames sueltos no sirve para validar el tracking.
 
 ### Entrenar el detector
+Modelo de 2 clases (el actual):
+```bash
+python scripts/preparar_dataset_2clases.py    # arma data/02_processed/dataset_2clases (apple / damaged_apple)
+python scripts/entrenar_2clases.py            # unos 40 min en CPU
+```
+Usa la misma receta que el modelo anterior (`yolo26n.pt`, 50 épocas, `patience=15`, `imgsz=416`, `batch=16`, `seed=0`) y registra el entrenamiento en `mlflow.db`. Los pesos quedan en `runs/detect/apple_2clases*/weights/best.pt`; para usarlos, copiarlos a `models/best.pt`.
+
+Modelo de 1 clase (el anterior, como referencia):
 ```bash
 yolo detect train data=images/data.yaml model=yolo26n.pt epochs=50 patience=15 imgsz=416 batch=16 device=cpu project=runs name=apple_v1
 ```
 Copiar `weights/best.pt` resultante a `models/best.pt`.
 
 ### Configuración
-Ajustar `config.yaml` (calibre, HSV, `px_por_mm`, fuente de video, `max_pct_defecto`). **`px_por_mm` hay que calibrarlo** con un objeto de tamaño conocido en cámara: con el valor por defecto las categorías salen casi todas «No pasa», aunque el conteo total es correcto. El semáforo de color está ajustado para manzanas rojas, y la regla de pudrición (`max_pct_defecto`) es exigente con fotos de fruta apilada.
+Ajustar `config.yaml` (calibre, HSV, `px_por_mm`, fuente de video, `max_pct_defecto`, `regla_pudricion`). **`px_por_mm` hay que calibrarlo** con un objeto de tamaño conocido en cámara: con el valor por defecto las categorías salen casi todas «No pasa», aunque el conteo total es correcto. El semáforo de color está ajustado para manzanas rojas.
+
+`regla_pudricion` decide si se usa la regla de color para pudrición (`max_pct_defecto`):
+- `auto` (por defecto): se apaga si el modelo detecta el daño como clase (`damaged_apple`) y se usa con el modelo de 1 clase.
+- `true`: siempre. `false`: nunca.
+
+Con el modelo de 2 clases conviene `auto`: la regla confunde sombras con pudrición y baja la precisión de 0,82 a 0,54 (ver [Resultados](#resultados)).
 
 ## Plataforma web con roles
 Implementa el [modelo de negocio](MODELO_NEGOCIO.md). El packing recibe lotes y los analiza con el mismo detector de la app de escritorio. El jefe de planta los valida y emite un certificado. El productor y la exportadora ven el resultado.
@@ -251,7 +288,7 @@ Si el jefe de planta rechaza el lote (con un motivo obligatorio), el operador su
 - Funciona sin internet: no usa librerías externas en el navegador.
 
 ### Datos de demostración
-La primera vez se crean 8 empresas, una cuenta por rol, 9 lotes en todos los estados, 19 análisis y una solicitud de cambio de plan. Las fotos salen de `images/test` y **se analizan con el modelo real**, así que la preparación tarda un poco en CPU. El conteo manual de los lotes aprobados es el número de manzanas etiquetadas en esas fotos: el error de conteo que muestra la plataforma (8,7 % en la demo) es un error real del modelo. Los nombres de empresas y personas son ficticios.
+La primera vez se crean 8 empresas, una cuenta por rol, 9 lotes en todos los estados, 19 análisis y una solicitud de cambio de plan. Las fotos salen de `images/test` y **se analizan con el modelo real**, así que la preparación tarda un poco en CPU. El conteo manual de los lotes aprobados es el número de manzanas etiquetadas en esas fotos: el error de conteo que muestra la plataforma es un error real del modelo. Los nombres de empresas y personas son ficticios.
 
 ### Cómo funciona por dentro
 | Archivo | Qué hace |
@@ -291,11 +328,68 @@ python -m unittest discover -s tests -v
 | `tests/test_foto_detalle.py` | 6 | Coordenadas y fusión de cajas del análisis de fotos por zonas |
 | `tests/test_web.py` | 22 | Roles y permisos, aislamiento entre empresas, CSRF, flujo de lote a certificado, cuotas, cambio de plan, CSV y manejo de errores |
 | `tests/test_validar_fotos.py` | 1 | El validador omite las fotos sin etiqueta |
+| `tests/test_clasificador.py` | 5 | Regla de pudrición según el modelo (`regla_pudricion`), daño por clase y lectura de `config.yaml` |
+| `tests/test_validar_danio.py` | 4 | Lectura de etiquetas, IoU, emparejamiento y métricas del evaluador de daño |
 
 Las pruebas de la web usan un analizador simulado (no cargan YOLO) y una carpeta temporal, así que no tocan `web_data/`.
 
 ## Resultados
-Modelo YOLO26 nano, 50 épocas, `imgsz=416`, CPU (≈55 min).
+
+### ¿Detecta mejor el modelo nuevo?
+Sí. En las mismas fotos de validación:
+
+| | Antes (1 clase + regla de color) | Ahora (2 clases) |
+|---|---|---|
+| Manzanas encontradas (recall) | 85 % | **90 %** |
+| Manzanas dañadas encontradas | 37 % | **94 %** |
+| Sanas marcadas como dañadas | 29 % | **8 %** |
+| Error de conteo por foto (test, fotos que no vio al entrenar) | 0,694 | **0,583** |
+
+![Foto con 25 manzanas sanas: antes marcaba 16 como «No pasa»; ahora 5](docs/img/comparacion_sanas.jpg)
+*25 manzanas sanas: antes marcaba 16 como «No pasa»; ahora 5, casi todas cortadas por el borde de la foto.*
+
+![Fruta podrida: antes quedaba 1 en «No pasa»; ahora las 10 detectadas](docs/img/comparacion_danadas.jpg)
+*Fruta podrida: antes solo 1 de 12 detecciones quedaba en «No pasa»; ahora quedan las 10 detectadas.*
+
+Fotos de validación del dataset apple-sorting (Arfiani Nur Sayidah, CC BY 4.0), elegidas sin marcas de agua. Para regenerarlas: `python -m src.vision.comparar_modelos --salida docs/img`. Falta comprobar la mejora en la cinta real: todas estas fotos son de fruta apilada, igual que las del entrenamiento.
+
+### Modelo actual: YOLO26 nano de 2 clases
+Clases `apple` / `damaged_apple`, 50 épocas, `imgsz=416`, CPU (≈38 min). Misma receta que el modelo anterior.
+
+| Clase (valid, 190 imágenes) | Instancias | Precision | Recall | mAP50 | mAP50-95 |
+|---|---:|---|---|---|---|
+| apple | 544 | 0.854 | 0.757 | 0.866 | 0.515 |
+| damaged_apple | 201 | 0.741 | 0.821 | 0.827 | 0.612 |
+| todas | 745 | 0.797 | 0.789 | 0.846 | 0.563 |
+
+**Comparado con el modelo de 1 clase**, en las mismas 745 manzanas de valid (el de 2 clases evaluado como una sola clase, con `single_cls`):
+
+| Detección de manzanas | Precision | Recall | mAP50 | mAP50-95 |
+|---|---|---|---|---|
+| 1 clase (anterior) | 0.822 | 0.852 | 0.884 | 0.546 |
+| 2 clases (actual) | 0.824 | 0.897 | 0.914 | 0.586 |
+
+**Detección de daño** (valid, 201 manzanas dañadas; `python -m src.vision.validar_danio`):
+
+| Método | Precision | Recall | F1 | Sanas marcadas como dañadas |
+|---|---|---|---|---|
+| Regla de color (como antes) | 0.31 | 0.37 | 0.34 | 29 % |
+| Clase del modelo de 2 clases | 0.82 | 0.94 | 0.88 | 8 % |
+| Modelo + regla de color | 0.54 | 0.96 | 0.69 | 31 % |
+| Semáforo «No pasa» del modelo anterior | 0.26 | 0.41 | 0.32 | 40 % |
+| Semáforo «No pasa» actual (`regla_pudricion: auto`) | 0.61 | 0.94 | 0.74 | 23 % |
+
+Las sanas que el semáforo actual todavía marca «No pasa» vienen sobre todo de la regla de forma (aspecto < 0,70): en fotos de montones, una manzana tapada parece deforme.
+
+**Conteo en fotos** (error absoluto medio por foto, `validar_fotos`, perfil por defecto):
+
+| Conjunto | 1 clase (anterior) | 2 clases (actual) |
+|---|---|---|
+| valid (190 fotos) | 0,947 | 0,816 |
+| test (36 fotos) | 0,694 (20 exactas) | 0,583 (21 exactas) |
+
+### Modelo anterior: YOLO26 nano de 1 clase
+Guardado en `models/best_1clase.pt`. 50 épocas, `imgsz=416`, CPU (≈55 min). Estas son las métricas del entrenamiento original; medido hoy con las etiquetas actuales da mAP50 0.884 (tabla anterior).
 
 | Métrica (valid, 190 imágenes) | Valor |
 |---|---|
@@ -314,23 +408,23 @@ Modelo YOLO26 nano, 50 épocas, `imgsz=416`, CPU (≈55 min).
 
 Las detecciones de más corresponden en su mayoría a **manzanas visibles que no tienen etiqueta** (por ejemplo, parcialmente cortadas por el borde), por lo que la precision real es mayor que la que reflejan estas cifras.
 
-**Conteo en fotos** (36 fotos etiquetadas de test, perfil por defecto): error absoluto medio de 0,694 manzanas por foto y 20 conteos exactos. Ver [VALIDACION_FOTOS.md](VALIDACION_FOTOS.md).
-
-**Limitaciones**
+### Limitaciones
 - Solo 61 imágenes de cinta, todas del mismo video: la prueba es un buen indicio, no una garantía.
 - `valid` es en su mayoría de manzanas apiladas (178 de 190 imágenes), por lo que sus métricas reflejan poco la cinta.
 - Hay 12 imágenes casi duplicadas entre train y valid (fuga menor de datos).
 - El conteo con tracking aún no se valida contra un conteo manual en un video continuo (el script `validar_conteo` ya existe; falta un video continuo con su conteo manual).
 - `images/test` mezcla 58 fotos sin etiqueta: no usar `yolo val split=test` hasta moverlas (ver [Datos](#datos)).
+- `valid` también se usa para elegir la mejor época del entrenamiento, así que sus métricas son algo optimistas. `test` tiene solo 10 manzanas dañadas: muy pocas para medir el daño.
+- Las manzanas dañadas vienen del dataset 2 (montones en cajas), no de la cinta.
 
-**Próximos pasos:** completar las etiquetas faltantes en cinta y re-entrenar, quitar duplicados, mover las fotos sin etiqueta fuera de `images/test`, sumar video propio de la cinta, calibrar `px_por_mm` y validar el conteo contra un conteo manual (en un piloto, la plataforma web ya registra ese error en cada lote validado).
+**Próximos pasos:** completar las etiquetas faltantes en cinta y re-entrenar, quitar duplicados, mover las fotos sin etiqueta fuera de `images/test`, sumar video propio de la cinta (con manzanas dañadas etiquetadas), armar un test con más manzanas dañadas, calibrar `px_por_mm` y validar el conteo contra un conteo manual (en un piloto, la plataforma web ya registra ese error en cada lote validado).
 
 ## Metodología CRISP-DM
 1. **Comprensión del negocio:** automatizar el conteo y la clasificación de manzanas en plantas de embalaje. Primer paso: conteo. El modelo de negocio está en [MODELO_NEGOCIO.md](MODELO_NEGOCIO.md).
 2. **Comprensión de los datos:** ver [Datos](#datos). Referencia: MinneApple (Häni et al., 2020). *(Completar con hallazgos de `01_eda.ipynb`.)*
 3. **Preparación de datos:** unificación de clases y fusión de datasets (hecho). Pendiente: features y split final.
-4. **Modelamiento:** YOLO para detección. Después, Random Forest y XGBoost (supervisado) y K-Means (no supervisado) para calificar.
-5. **Evaluación:** mAP, Precision y Recall para detección; error de conteo en fotos con `validar_fotos`. F1, AUC, Silhouette y validación cruzada estratificada para calificación.
+4. **Modelamiento:** YOLO de 2 clases para detectar manzanas y daño (hecho). Después, Random Forest y XGBoost (supervisado) y K-Means (no supervisado) para calificar.
+5. **Evaluación:** mAP, Precision y Recall por clase; error de conteo en fotos con `validar_fotos`; precisión, recall y F1 del daño con `validar_danio` (hecho). Pendiente: AUC, Silhouette y validación cruzada estratificada para calificación.
 6. **Despliegue:** app de escritorio y plataforma web con roles (hecho). Modelos en S3 y tracking con MLflow: pendiente.
 
 ## Alcance

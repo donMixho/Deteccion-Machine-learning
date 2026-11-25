@@ -11,6 +11,10 @@ saturacion_min: 120
 # (H 10-25 y S < 110) dentro de la fruta. Sobre este valor la fruta es "No pasa".
 max_pct_defecto: 12.0
 
+# Regla de color para pudrición. auto (recomendado) = se apaga si el modelo detecta el daño como
+# clase (damaged_apple), porque confunde sombras con pudrición; true = siempre; false = nunca.
+regla_pudricion: auto
+
 # Fuente de video: 0 = webcam, o ruta a archivo de video
 fuente_video: 0
 
