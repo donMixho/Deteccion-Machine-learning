@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS empresas (
     plan        TEXT NOT NULL,
     lineas      INTEGER NOT NULL DEFAULT 1,
     activa      INTEGER NOT NULL DEFAULT 1,
-    creada_en   TEXT NOT NULL
+    creada_en   TEXT NOT NULL,
+    plan_vence  TEXT
 );
 CREATE TABLE IF NOT EXISTS usuarios (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +78,25 @@ CREATE TABLE IF NOT EXISTS solicitudes (
     creada_en       TEXT NOT NULL,
     resuelta_en     TEXT
 );
+CREATE TABLE IF NOT EXISTS pagos (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    empresa_id    INTEGER NOT NULL REFERENCES empresas(id),
+    usuario_id    INTEGER NOT NULL REFERENCES usuarios(id),
+    plan          TEXT NOT NULL,
+    buy_order     TEXT NOT NULL UNIQUE,
+    neto          INTEGER NOT NULL,
+    monto         INTEGER NOT NULL,
+    estado        TEXT NOT NULL DEFAULT 'pendiente'
+                  CHECK (estado IN ('pendiente','autorizado','rechazado','anulado','error')),
+    token         TEXT UNIQUE,
+    autorizacion  TEXT,
+    tarjeta       TEXT,
+    tipo_pago     TEXT,
+    cuotas        INTEGER,
+    creado_en     TEXT NOT NULL,
+    resuelto_en   TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_pagos_empresa ON pagos(empresa_id, creado_en);
 CREATE INDEX IF NOT EXISTS ix_lotes_packing ON lotes(packing_id, creado_en);
 CREATE INDEX IF NOT EXISTS ix_lotes_productor ON lotes(productor_id);
 CREATE INDEX IF NOT EXISTS ix_lotes_exportadora ON lotes(exportadora_id, estado);
@@ -119,6 +139,9 @@ def inicializar(ruta: Path) -> None:
     try:
         con.execute("PRAGMA journal_mode = WAL")   # lecturas mientras el hilo de análisis escribe
         con.executescript(ESQUEMA)
+        # Bases creadas antes de los pagos: agrega la vigencia del plan
+        if "plan_vence" not in {f["name"] for f in con.execute("PRAGMA table_info(empresas)")}:
+            con.execute("ALTER TABLE empresas ADD COLUMN plan_vence TEXT")
         con.commit()
     finally:
         con.close()

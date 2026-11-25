@@ -55,6 +55,16 @@ BENEFICIOS = {
                     "Verificación y descarga CSV"],
 }
 
+IVA = 0.19
+DIAS_PLAN = 30          # vigencia de un plan pagado con Webpay
+
+
+def con_iva(neto: int) -> dict:
+    """Desglose en pesos enteros (Webpay cobra CLP sin decimales)."""
+    iva = round(neto * IVA)
+    return {"neto": neto, "iva": iva, "total": neto + iva}
+
+
 VARIEDADES = ["Gala", "Fuji", "Cripps Pink", "Granny Smith", "Red Delicious", "Braeburn"]
 
 # ---------------------------------------------------------------- estados

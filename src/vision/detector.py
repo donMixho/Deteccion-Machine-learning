@@ -20,6 +20,7 @@ import numpy as np
 from ultralytics import YOLO
 
 from src.utils.config import RAIZ, Config, cargar_config
+from src.utils.s3_helper import subir_resultados
 from src.vision.calibrador import estimar_diametro_mm
 from src.vision.clasificador import COLORES_BGR, NO_PASA, clasificar, es_danada, usar_regla_pudricion
 from src.vision.panel import dibujar_caja, dibujar_linea_conteo, dibujar_panel
@@ -429,11 +430,13 @@ def main() -> None:
                         conf=CONF_FOTO_DEFAULT if args.conf is None else args.conf,
                         iou=IOU_FOTO_DEFAULT if args.iou is None else args.iou,
                         detalle=args.detalle_foto)
+        subir_resultados([args.guardar], "detector")   # respaldo en S3 si hay bucket; si no, queda local
         return
     fuente = args.video if args.video is not None else cfg.fuente_video
     procesar(fuente, args.modelo, cfg, mostrar=not args.sin_ventana, lote=args.lote,
              linea=args.linea, guardar=args.guardar,
              conf=CONF_DEFAULT if args.conf is None else args.conf)
+    subir_resultados([args.guardar, CSV_SALIDA], "detector")   # respaldo en S3 si hay bucket; si no, queda local
 
 
 if __name__ == "__main__":

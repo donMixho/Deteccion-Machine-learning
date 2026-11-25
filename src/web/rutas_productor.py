@@ -4,8 +4,9 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from src.web import graficos
 from src.web.auth import rol_requerido, usuario_actual
 from src.web.db import ejecutar, todos, uno, valor
-from src.web.negocio import (BENEFICIOS, NIVELES_SENSIBILIDAD, PLANES, ahora_iso, inicio_mes, planes_para,
-                             porcentaje)
+from src.web.negocio import (BENEFICIOS, NIVELES_SENSIBILIDAD, PLANES, ahora_iso, con_iva, inicio_mes,
+                             planes_para, porcentaje)
+from src.web.rutas_pagos import historial, webpay_listo
 from src.web.rutas_lotes import crear_analisis
 
 bp = Blueprint("productor", __name__, url_prefix="/productor")
@@ -88,5 +89,9 @@ def plan():
                         VALUES (?, ?, ?, ?)""", (usuario["empresa_id"], usuario["id"], solicitado, ahora_iso()))
             flash(f"Solicitud enviada: {PLANES[solicitado]['nombre']}. El equipo AppleVision la activará.", "exito")
         return redirect(url_for("productor.plan"))
-    return render_template("productor/plan.html", planes=planes, beneficios=BENEFICIOS, cuota=cuota(usuario),
-                           pendiente=pendiente)
+    webpay, es_prueba = webpay_listo()
+    return render_template(
+        "productor/plan.html", planes=planes, beneficios=BENEFICIOS, cuota=cuota(usuario), pendiente=pendiente,
+        montos={k: con_iva(p["precio"]) for k, p in planes.items() if p["precio"]},
+        vence=uno("SELECT plan_vence FROM empresas WHERE id = ?", (usuario["empresa_id"],))["plan_vence"],
+        pagos=historial(usuario["empresa_id"]), webpay=webpay, es_prueba=es_prueba)

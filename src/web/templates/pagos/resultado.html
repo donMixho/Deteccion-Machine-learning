@@ -1,0 +1,36 @@
+{% extends "panel.html" %}
+{% block titulo %}Pago · AppleVision Chile{% endblock %}
+{% block contenido %}
+{% set ok = pago.estado == 'autorizado' %}
+<div class="titulo-pagina"><div><div class="miga"><a href="{{ url_for('productor.plan') }}">Mi plan</a> / Pago</div><h1>Comprobante de pago</h1></div></div>
+
+<section class="tarjeta pago-ficha">
+  <div class="pago-estado {{ 'ok' if ok else ('neutro' if pago.estado in ('anulado', 'pendiente') else 'mal') }}">
+    {{ icono('check' if ok else ('info' if pago.estado in ('anulado', 'pendiente') else 'alerta')) }}
+    <strong>
+      {% if ok %}Plan {{ plan.nombre }} activo{% if vence %} hasta el {{ vence|fecha('corta') }}{% endif %}
+      {% elif pago.estado == 'anulado' %}Pago cancelado, sin cargo
+      {% elif pago.estado == 'rechazado' %}Pago rechazado por el banco
+      {% elif pago.estado == 'pendiente' %}Pago en proceso
+      {% else %}No pudimos completar el pago{% endif %}
+    </strong>
+  </div>
+  <dl class="ficha" style="margin-bottom: 16px;">
+    <div><dt>Orden</dt><dd class="mono">{{ pago.buy_order }}</dd></div>
+    <div><dt>Plan</dt><dd>{{ plan.nombre }}</dd></div>
+    {% if ok %}
+    <div><dt>Autorización</dt><dd class="mono">{{ pago.autorizacion }}</dd></div>
+    <div><dt>Tarjeta</dt><dd class="mono">•••• {{ pago.tarjeta }}</dd></div>
+    {% endif %}
+  </dl>
+  <div class="desglose">
+    <div><span>Neto</span><span>{{ pago.neto|clp }}</span></div>
+    <div><span>IVA 19 %</span><span>{{ iva|clp }}</span></div>
+    <div class="total"><span>Total</span><span>{{ pago.monto|clp }}</span></div>
+  </div>
+  <div style="margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap;">
+    <a class="boton boton-primario" href="{{ url_for('productor.plan' if not ok else 'productor.panel') }}">{{ 'Ir a mis lotes' if ok else 'Volver a planes' }}</a>
+    {% if ok %}<button class="boton no-imprimir" type="button" onclick="window.print()">{{ icono('imprimir') }}Imprimir</button>{% endif %}
+  </div>
+</section>
+{% endblock %}

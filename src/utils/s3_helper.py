@@ -62,3 +62,22 @@ def descargar(clave: str, ruta_local: str) -> Optional[Path]:
         log.info("Usando respaldo local %s", destino)
         return destino
     return None
+
+
+def subir_resultados(rutas, carpeta: str = "") -> list:
+    """Respalda en S3 los archivos de un análisis terminado. Nunca lanza excepciones.
+
+    Sin bucket (config.yaml `s3_bucket` vacío) o con S3 caído no hace nada: los archivos
+    siguen en disco y el análisis se considera terminado igual. Devuelve las claves subidas.
+    """
+    subidas = []
+    try:
+        prefijo = cargar_config().s3_prefix
+        for ruta in rutas:
+            if ruta and Path(ruta).is_file():
+                clave = f"{prefijo}{carpeta.strip('/')}/{Path(ruta).name}".replace("//", "/").lstrip("/")
+                if subir(str(ruta), clave):
+                    subidas.append(clave)
+    except Exception as e:   # noqa: BLE001 - el respaldo nunca debe romper el flujo principal
+        log.warning("No se pudo respaldar en S3 (%s); los archivos quedan en local", e)
+    return subidas

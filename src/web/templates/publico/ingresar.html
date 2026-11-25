@@ -6,8 +6,7 @@
   <aside class="ingreso-lado">
     <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
     <div>
-      <h1>Conteo y calidad de manzanas, lote por lote.</h1>
-      <p>Packing, productor y exportadora miran el mismo resultado, con la misma evidencia.</p>
+      <h1>Conteo y calidad, lote por lote.</h1>
       <img src="{{ url_for('static', filename='img/panel_en_vivo.png') }}" width="1400" height="832" alt="Panel de conteo en vivo de AppleVision">
     </div>
     <p class="pequeno">Proyecto MLY1101 Machine Learning — DUOC UC</p>
@@ -16,8 +15,7 @@
   <main class="ingreso-form">
     <div class="ingreso-caja">
       <h1>Ingresar</h1>
-      <p class="suave">Usa la cuenta que te entregó tu empresa.</p>
-      {{ m.avisos() }}
+            {{ m.avisos() }}
       <form class="formulario" method="post">
         {{ m.csrf() }}
         <div class="campo">
@@ -39,7 +37,7 @@
         <a class="acceso" href="{{ url_for('auth.demo', rol=rol) }}"><strong>{{ ROLES[rol].nombre }} <span>→</span></strong><span>{{ correo }}</span></a>
         {% endfor %}
       </div>
-      <p class="nota">Contraseña de todas las cuentas de demostración: <code>demo1234</code>. Para desactivarlas: <code>python -m src.web --sin-demo</code></p>
+      <p class="nota">Contraseña de las cuentas demo: <code>demo1234</code></p>
       {% endif %}
       <p class="pequeno" style="margin-top: 20px;"><a href="{{ url_for('publico.inicio') }}">← Volver al inicio</a></p>
     </div>
