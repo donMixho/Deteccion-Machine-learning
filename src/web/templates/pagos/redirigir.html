@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titulo %}Redirigiendo a Webpay · AppleVision Chile{% endblock %}
+{% block cuerpo %}
+<main class="redirigiendo">
+  <form method="post" action="{{ url }}">
+    <input type="hidden" name="token_ws" value="{{ token }}">
+    <p>Redirigiendo a Webpay…</p>
+    <noscript><button class="boton boton-primario" type="submit">Continuar a Webpay</button></noscript>
+  </form>
+</main>
+<script>document.forms[0].submit();</script>
+{% endblock %}

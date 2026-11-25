@@ -27,8 +27,30 @@ def analizador_falso(tipo, entrada, carpeta, sensibilidad, linea, etiqueta, al_p
             "pudricion": 1, "resultado": resultado, "miniatura": miniatura}
 
 
+class WebpayFalso:
+    """Reemplaza a Transbank: guarda lo que se le pide y responde lo que cada prueba configure."""
+    es_prueba = True
+
+    def __init__(self):
+        self.creadas, self.confirmadas = [], []
+        self.respuesta = {}          # campos que reemplazan a la respuesta de un pago autorizado
+
+    def crear(self, buy_order, session_id, monto, url_retorno):
+        self.creadas.append({"buy_order": buy_order, "monto": monto, "url_retorno": url_retorno})
+        return {"token": f"tok{len(self.creadas)}", "url": "https://webpay.test/pagar"}
+
+    def confirmar(self, token):
+        self.confirmadas.append(token)
+        orden = self.creadas[int(token[3:]) - 1]
+        base = {"status": "AUTHORIZED", "response_code": 0, "amount": orden["monto"], "buy_order": orden["buy_order"],
+                "authorization_code": "1213", "card_detail": {"card_number": "6623"}, "payment_type_code": "VN",
+                "installments_number": 0}
+        return {**base, **self.respuesta}
+
+
 def config(datos):
-    return {"DATOS": datos, "TESTING": True, "COLA_SINCRONA": True, "ANALIZADOR": analizador_falso, "DEMO": True}
+    return {"DATOS": datos, "TESTING": True, "COLA_SINCRONA": True, "ANALIZADOR": analizador_falso, "DEMO": True,
+            "WEBPAY": WebpayFalso()}
 
 
 class PruebaWeb(unittest.TestCase):
@@ -307,6 +329,122 @@ class PruebaWeb(unittest.TestCase):
         self.assertEqual(roles, {"admin", "jefe_planta", "operador", "productor", "exportador"})
         estados = {r["estado"] for r in self.db().execute("SELECT estado FROM lotes")}
         self.assertEqual(estados, {"recepcionado", "por_aprobar", "aprobado", "rechazado"})
+
+    # ------------------------------------------------------------ pagos con Webpay
+    def iniciar_pago(self):
+        """Productor Básico (Santa Rosa) empieza a pagar el plan Pro. Devuelve (respuesta, pago)."""
+        self.entrar_con("productor@santarosa.demo")
+        r = self.c.post("/pagos/iniciar", data={"csrf": self.token(), "plan": "productor_pro"})
+        return r, self.uno("SELECT * FROM pagos ORDER BY id DESC LIMIT 1")
+
+    def volver_del_banco(self, **datos):
+        """El banco redirige desde otro sitio: sin cookie de sesión ni token CSRF."""
+        return self.app.test_client().post("/pagos/retorno", data=datos)
+
+    def plan_de(self, email):
+        return self.uno("""SELECT e.plan, e.plan_vence FROM empresas e JOIN usuarios u ON u.empresa_id = e.id
+                           WHERE u.email = ?""", (email,))
+
+    def test_webpay_cobra_el_plan_con_iva_y_redirige_al_banco(self):
+        r, pago = self.iniciar_pago()
+        html = r.get_data(as_text=True)
+        self.assertIn("https://webpay.test/pagar", html)
+        self.assertIn('name="token_ws" value="tok1"', html)
+        self.assertEqual((pago["neto"], pago["monto"], pago["estado"]), (9990, 11888, "pendiente"))   # 9.990 + 19 %
+        self.assertEqual(self.app.config["WEBPAY"].creadas[0]["monto"], 11888)
+        self.assertLessEqual(len(pago["buy_order"]), 26)
+
+    def test_pago_autorizado_activa_el_plan_por_30_dias(self):
+        _, pago = self.iniciar_pago()
+        r = self.volver_del_banco(token_ws="tok1")
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(r.headers["Location"].endswith(f"/pagos/{pago['id']}"))
+        plan = self.plan_de("productor@santarosa.demo")
+        self.assertEqual(plan["plan"], "productor_pro")
+        dias = (datetime.fromisoformat(plan["plan_vence"]) - datetime.now()).days
+        self.assertIn(dias, (29, 30))
+        cerrado = self.uno("SELECT * FROM pagos WHERE id = ?", (pago["id"],))
+        self.assertEqual((cerrado["estado"], cerrado["tarjeta"], cerrado["autorizacion"]), ("autorizado", "6623", "1213"))
+        self.assertIsNone(self.uno("SELECT 1 FROM solicitudes WHERE estado = 'pendiente' AND plan_solicitado = 'productor_pro'"))
+        html = self.c.get(f"/pagos/{pago['id']}").get_data(as_text=True)
+        self.assertIn("Plan Productor Pro activo", html)
+        self.assertIn("$11.888", html)
+
+    def test_pago_rechazado_no_cambia_el_plan(self):
+        self.iniciar_pago()
+        self.app.config["WEBPAY"].respuesta = {"status": "FAILED", "response_code": -1}
+        self.volver_del_banco(token_ws="tok1")
+        self.assertEqual(self.plan_de("productor@santarosa.demo")["plan"], "productor_basico")
+        self.assertEqual(self.uno("SELECT estado FROM pagos")["estado"], "rechazado")
+
+    def test_pago_con_monto_distinto_no_se_acepta(self):
+        self.iniciar_pago()
+        self.app.config["WEBPAY"].respuesta = {"amount": 100}
+        self.volver_del_banco(token_ws="tok1")
+        self.assertEqual(self.plan_de("productor@santarosa.demo")["plan"], "productor_basico")
+        self.assertEqual(self.uno("SELECT estado FROM pagos")["estado"], "rechazado")
+
+    def test_pago_cancelado_en_el_banco_no_cobra(self):
+        _, pago = self.iniciar_pago()
+        r = self.app.test_client().get("/pagos/retorno", query_string={
+            "TBK_TOKEN": "tok1", "TBK_ORDEN_COMPRA": pago["buy_order"], "TBK_ID_SESION": "s"})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(self.uno("SELECT estado FROM pagos")["estado"], "anulado")
+        self.assertEqual(self.plan_de("productor@santarosa.demo")["plan"], "productor_basico")
+        self.assertEqual(self.app.config["WEBPAY"].confirmadas, [])
+
+    def test_volver_dos_veces_del_banco_confirma_una_sola_vez(self):
+        self.iniciar_pago()
+        self.volver_del_banco(token_ws="tok1")
+        self.volver_del_banco(token_ws="tok1")
+        self.assertEqual(self.app.config["WEBPAY"].confirmadas, ["tok1"])
+
+    def test_retorno_con_token_desconocido_es_404(self):
+        self.assertEqual(self.volver_del_banco(token_ws="inventado").status_code, 404)
+
+    def test_solo_el_productor_inicia_pagos_y_solo_ve_los_suyos(self):
+        for rol in ("operador", "exportador", "admin"):
+            self.entrar(rol)
+            r = self.c.post("/pagos/iniciar", data={"csrf": self.token(), "plan": "productor_pro"})
+            self.assertEqual(r.status_code, 403, rol)
+        _, pago = self.iniciar_pago()
+        self.entrar("productor")                                    # otra empresa (El Manzano)
+        self.assertEqual(self.c.get(f"/pagos/{pago['id']}").status_code, 404)
+
+    def test_plan_gratis_o_inexistente_no_se_paga(self):
+        self.entrar_con("productor@santarosa.demo")
+        for plan in ("productor_basico", "packing", "inventado"):
+            self.c.post("/pagos/iniciar", data={"csrf": self.token(), "plan": plan})
+        self.assertIsNone(self.uno("SELECT 1 FROM pagos"))
+
+    def test_plan_vencido_vuelve_al_gratuito(self):
+        con = self.db()
+        con.execute("""UPDATE empresas SET plan_vence = '2020-01-01T00:00:00'
+                       WHERE id = (SELECT empresa_id FROM usuarios WHERE email = 'productor@elmanzano.demo')""")
+        con.commit()
+        con.close()
+        self.entrar_con("productor@elmanzano.demo")
+        self.c.get("/productor/plan")
+        self.assertEqual(self.plan_de("productor@elmanzano.demo")["plan"], "productor_basico")
+
+    def test_falla_de_transbank_no_deja_pago_pendiente(self):
+        from src.web.webpay import ErrorWebpay
+
+        def falla(*_):
+            raise ErrorWebpay("sin conexión")
+        self.app.config["WEBPAY"].crear = falla
+        self.entrar_con("productor@santarosa.demo")
+        r = self.c.post("/pagos/iniciar", data={"csrf": self.token(), "plan": "productor_pro"}, follow_redirects=True)
+        self.assertIn("No pudimos conectar con Webpay", r.get_data(as_text=True))
+        self.assertEqual(self.uno("SELECT estado FROM pagos")["estado"], "error")
+
+    def test_cliente_webpay_usa_integracion_por_defecto_y_exige_llaves_en_produccion(self):
+        from src.web.webpay import ClienteWebpay
+        c = ClienteWebpay(ambiente="integracion")
+        self.assertTrue(c.es_prueba)
+        self.assertIn("webpay3gint", c._url())
+        with self.assertRaises(ValueError):
+            ClienteWebpay(ambiente="produccion", comercio="", llave="")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ import cv2
 import numpy as np
 
 from src.utils.config import RAIZ, cargar_config
+from src.utils.s3_helper import subir_resultados
 from src.web.db import conectar
 from src.web.negocio import ahora_iso
 
@@ -164,6 +165,7 @@ class ColaAnalisis:
             self.progreso[analisis_id] = 0.0
             entrada = self.datos / fila["archivo_entrada"]
             inicio = time.perf_counter()
+            r = None
             try:
                 r = self.analizador(fila["tipo"], entrada, entrada.parent, fila["sensibilidad"],
                                     fila["linea_conteo"] or 50, fila["lote_codigo"] or "Análisis rápido",
@@ -186,5 +188,8 @@ class ColaAnalisis:
             con.commit()
             if fila["lote_id"]:
                 recalcular_estado_lote(con, fila["lote_id"])
+            if r is not None and r.get("resultado"):   # respaldo en S3 (sin bucket o sin red: queda local)
+                subir_resultados([r.get("resultado"), r.get("miniatura"), Path(r["resultado"]).parent / "metricas.csv"],
+                                 f"analisis/{analisis_id}")
         finally:
             con.close()

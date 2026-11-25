@@ -104,10 +104,10 @@ def create_app(config: dict = None) -> Flask:
                                           analizador=app.config["ANALIZADOR"] or analizar_con_yolo,
                                           sincrona=app.config["COLA_SINCRONA"])
 
-    from src.web import (auth, rutas_admin, rutas_exportador, rutas_lotes, rutas_planta, rutas_productor,
-                         rutas_publicas)
+    from src.web import (auth, rutas_admin, rutas_exportador, rutas_lotes, rutas_pagos, rutas_planta,
+                         rutas_productor, rutas_publicas)
     for modulo in (auth, rutas_publicas, rutas_admin, rutas_planta, rutas_lotes, rutas_productor,
-                   rutas_exportador):
+                   rutas_exportador, rutas_pagos):
         app.register_blueprint(modulo.bp)
 
     app.add_template_filter(_fecha, "fecha")
@@ -127,12 +127,19 @@ def create_app(config: dict = None) -> Flask:
             "navegacion": NAVEGACION.get(usuario["rol"], []) if usuario else [],
             "endpoint": request.endpoint or "",
             "ROLES": ROLES, "PLANES": PLANES, "TIPOS_EMPRESA": TIPOS_EMPRESA,
-            "ESTADOS_LOTE": ESTADOS_LOTE, "ESTADOS_ANALISIS": ESTADOS_ANALISIS, "CATEGORIAS": CATEGORIAS,
+            "ESTADOS_PAGO": rutas_pagos.ESTADOS_PAGO, "ESTADOS_LOTE": ESTADOS_LOTE, "ESTADOS_ANALISIS": ESTADOS_ANALISIS, "CATEGORIAS": CATEGORIAS,
             "csrf_token": _csrf_token, "DEMO": app.config["DEMO"],
         }
 
     @app.before_request
+    def _vencimientos():
+        if session.get("uid"):
+            rutas_pagos.vencer_planes()
+
+    @app.before_request
     def _verificar_csrf():
+        if request.endpoint == "pagos.retorno":   # Webpay vuelve desde otro sitio; se valida con Transbank
+            return
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             esperado = session.get("csrf")
             enviado = request.form.get("csrf") or request.headers.get("X-CSRF-Token") or ""

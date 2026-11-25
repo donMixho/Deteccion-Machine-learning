@@ -4,31 +4,62 @@
 {% block titulo %}Mi plan · AppleVision Chile{% endblock %}
 {% block contenido %}
 <div class="titulo-pagina">
-  <div><h1>Mi plan</h1><p>Ver los resultados de tus lotes siempre es gratis. Los planes cambian cuántos análisis rápidos puedes hacer.</p></div>
+  <div><h1>Mi plan</h1><p>Ver tus lotes es siempre gratis.</p></div>
 </div>
 
 {% if pendiente %}
-<div class="aviso aviso-info" style="margin-bottom: 16px;">{{ icono('reloj') }}<span>Solicitaste el plan <strong>{{ PLANES[pendiente.plan_solicitado].nombre }}</strong> el {{ pendiente.creada_en|fecha }}. El equipo AppleVision lo activará.</span></div>
+<div class="aviso aviso-info" style="margin-bottom: 16px;">{{ icono('reloj') }}<span>Solicitud en revisión: <strong>{{ PLANES[pendiente.plan_solicitado].nombre }}</strong> ({{ pendiente.creada_en|fecha }}).</span></div>
 {% endif %}
 
 <div class="rejilla rejilla-2" style="max-width: 860px;">
   {% for clave, plan in planes.items() %}
-  <section class="tarjeta plan{% if clave == usuario.empresa_plan %} destacado{% endif %}">
-    <div class="para">{{ 'Plan actual' if clave == usuario.empresa_plan else 'Disponible' }}</div>
+  {% set actual = clave == usuario.empresa_plan %}
+  <section class="tarjeta plan{% if actual %} destacado{% endif %}">
+    <div class="para">{{ 'Plan actual' if actual else 'Disponible' }}</div>
     <h2>{{ plan.nombre }}</h2>
     <div class="precio">{% if plan.precio %}{{ plan.precio|clp }}{% else %}Gratis{% endif %} <span class="unidad">{{ plan.unidad if plan.precio }}</span></div>
     <ul>{% for b in beneficios[clave] %}<li>{{ icono('check') }}<span>{{ b }}</span></li>{% endfor %}</ul>
     <div class="pie-plan">
-      {% if clave == usuario.empresa_plan %}
-      <div class="etiqueta">Análisis rápidos este mes: {{ cuota.usados }} de {{ cuota.limite }}</div>
-      {{ gr.medidor(cuota.pct, 'Cuota usada') }}
-      {% elif not pendiente %}
+      {% if actual %}
+      <div class="etiqueta">Análisis rápidos este mes: {{ cuota.usados }}{% if cuota.limite %} de {{ cuota.limite }}{% endif %}</div>
+      {% if cuota.limite %}{{ gr.medidor(cuota.pct, 'Cuota usada') }}{% endif %}
+      {% if vence %}<p class="pequeno suave" style="margin: 10px 0 0;">Vigente hasta el {{ vence|fecha('corta') }}</p>{% endif %}
+      {% endif %}
+
+      {% if plan.precio and (not actual or vence) %}
+      <div class="desglose" style="margin-top: 12px;">
+        <div><span>Neto</span><span>{{ montos[clave].neto|clp }}</span></div>
+        <div><span>IVA 19 %</span><span>{{ montos[clave].iva|clp }}</span></div>
+        <div class="total"><span>Total</span><span>{{ montos[clave].total|clp }}</span></div>
+      </div>
+      <form method="post" action="{{ url_for('pagos.iniciar') }}">{{ m.csrf() }}<input type="hidden" name="plan" value="{{ clave }}">
+        <button class="boton boton-primario boton-bloque" type="submit"{% if not webpay %} disabled{% endif %}>{{ icono('plan') }}{{ 'Renovar' if actual else 'Pagar' }} con Webpay</button></form>
+      {% elif not actual and not plan.precio and not pendiente %}
       <form method="post">{{ m.csrf() }}<input type="hidden" name="plan" value="{{ clave }}">
-        <button class="boton boton-primario boton-bloque" type="submit">Solicitar {{ plan.nombre }}</button></form>
+        <button class="boton boton-bloque" type="submit">Solicitar {{ plan.nombre }}</button></form>
       {% endif %}
     </div>
   </section>
   {% endfor %}
 </div>
-<p class="nota" style="max-width: 860px;">Precios referenciales + IVA. En esta versión de demostración no se cobra: la solicitud la aprueba el administrador desde su panel.</p>
+<p class="nota" style="max-width: 860px;">{% if not webpay %}Pagos no disponibles: falta configurar Webpay.{% elif es_prueba %}Ambiente de pruebas de Webpay: no se realiza ningún cobro real.{% else %}Pago seguro con Webpay Plus (Transbank).{% endif %}</p>
+
+{% if pagos %}
+<section class="tarjeta" style="max-width: 860px; margin-top: 20px;">
+  <div class="tarjeta-cab"><h2>Pagos</h2></div>
+  <div class="tabla-envoltura"><table class="tabla">
+    <thead><tr><th>Fecha</th><th>Plan</th><th class="num">Total</th><th>Estado</th></tr></thead>
+    <tbody>
+      {% for p in pagos %}
+      <tr>
+        <td class="nowrap"><a href="{{ url_for('pagos.resultado', pago_id=p.id) }}">{{ p.creado_en|fecha }}</a></td>
+        <td>{{ PLANES[p.plan].nombre }}</td>
+        <td class="num">{{ p.monto|clp }}</td>
+        <td><span class="badge estado-{{ {'autorizado': 'aprobado', 'pendiente': 'por_aprobar'}.get(p.estado, 'rechazado') }}">{{ ESTADOS_PAGO[p.estado] }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endif %}
 {% endblock %}
