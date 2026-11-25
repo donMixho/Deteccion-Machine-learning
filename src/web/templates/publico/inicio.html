@@ -9,7 +9,7 @@
       <p class="lead">Conteo y calidad en la línea de embalaje, con evidencia verificable para productores y exportadoras.</p>
       <div class="acciones">
         <a class="boton boton-primario boton-grande" href="{{ url_for('auth.ingresar') }}">Ingresar {{ icono('flecha') }}</a>
-        <a class="boton boton-grande" href="#planes">Ver planes</a>
+        <a class="boton boton-grande" href="#como-funciona">Cómo funciona</a>
       </div>
     </div>
     <div class="heroe-img">
@@ -86,28 +86,7 @@
   </div>
 </section>
 
-<section class="seccion seccion-alt" id="planes">
-  <div class="contenedor">
-    <div class="seccion-cab">
-      <div class="sobretitulo">Planes</div>
-      <h2>Planes</h2>
-      <p>Precios en pesos chilenos, más IVA.</p>
-    </div>
-    <div class="planes-grid">
-      {% for clave, plan in planes.items() %}
-      <div class="tarjeta plan{% if clave == 'packing' %} destacado{% endif %}">
-        <div class="para">{{ TIPOS_EMPRESA[plan.tipo_empresa] }}{% if clave == 'packing' %} · cliente principal{% endif %}</div>
-        <h3>{{ plan.nombre }}</h3>
-        <div class="precio">{% if plan.precio %}{{ plan.precio|clp }}{% else %}Gratis{% endif %} <span class="unidad">{{ plan.unidad if plan.precio }}</span></div>
-        <ul>{% for b in beneficios[clave] %}<li>{{ icono('check') }}<span>{{ b }}</span></li>{% endfor %}</ul>
-        {% if plan.instalacion %}<div class="pie-plan">Instalación única: {{ plan.instalacion|clp }} por línea.</div>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
-
-<section class="seccion" id="verificar">
+<section class="seccion seccion-alt" id="verificar">
   <div class="contenedor">
     <div class="seccion-cab">
       <div class="sobretitulo">Verificar</div>

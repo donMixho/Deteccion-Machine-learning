@@ -104,12 +104,13 @@ class PruebaWeb(unittest.TestCase):
         return self.uno(f"SELECT * FROM v_lotes WHERE {condicion} ORDER BY id LIMIT 1", params)
 
     # ------------------------------------------------------------ público e ingreso
-    def test_portada_muestra_modelo_de_negocio_y_planes(self):
+    def test_portada_muestra_modelo_de_negocio_sin_lista_de_planes(self):
         r = self.c.get("/")
         self.assertEqual(r.status_code, 200)
         html = r.get_data(as_text=True)
-        for texto in ("Un servicio, tres clientes", "Productor Pro", "$290.000", "Jefe de planta", "0,914"):
+        for texto in ("Un servicio, tres clientes", "Jefe de planta", "0,914"):
             self.assertIn(texto, html)
+        self.assertNotIn("Planes", html)           # la portada no publica una lista de precios
 
     def test_ingreso_con_clave_incorrecta_y_correcta(self):
         r = self.entrar_con("jefe@losrobles.demo", "mala-clave")

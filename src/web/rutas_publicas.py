@@ -1,9 +1,9 @@
-"""Páginas sin cuenta: portada (modelo de negocio y planes) y verificación de certificados."""
+"""Páginas sin cuenta: portada (modelo de negocio) y verificación de certificados."""
 from flask import Blueprint, render_template, request
 
 from src.web import graficos
 from src.web.db import uno
-from src.web.negocio import BENEFICIOS, PLANES, ROLES
+from src.web.negocio import ROLES
 
 bp = Blueprint("publico", __name__)
 
@@ -18,8 +18,7 @@ METRICAS_MODELO = [
 
 @bp.route("/")
 def inicio():
-    planes = {clave: p for clave, p in PLANES.items() if p["publico"]}
-    return render_template("publico/inicio.html", planes=planes, beneficios=BENEFICIOS, roles=ROLES,
+    return render_template("publico/inicio.html", roles=ROLES,
                            metricas=METRICAS_MODELO)
 
 
