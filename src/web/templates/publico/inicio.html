@@ -1,4 +1,5 @@
 {% extends "publico/_base.html" %}
+{% import "_graficos.html" as gr with context %}
 {% block titulo %}AppleVision Chile · Conteo y calidad de manzanas con visión artificial{% endblock %}
 {% block pagina %}
 <section class="heroe">
@@ -92,11 +93,25 @@
       <div class="sobretitulo">Verificar</div>
       <h2>Verificar un certificado</h2>
     </div>
-    <form class="verificar-caja" method="get" action="{{ url_for('publico.verificar') }}">
-      <label class="sr-only" for="codigo">Código del certificado</label>
-      <input id="codigo" type="text" name="codigo" placeholder="AV-2026-XXXXXX" required maxlength="20" autocomplete="off">
-      <button class="boton boton-primario" type="submit">{{ icono('verificar') }}Verificar</button>
-    </form>
+    <div class="verificar-rejilla">
+      <form class="verificar-caja" method="get" action="{{ url_for('publico.verificar') }}">
+        <label class="sr-only" for="codigo">Código del certificado</label>
+        <input id="codigo" type="text" name="codigo" placeholder="AV-2026-XXXXXX" required maxlength="20" autocomplete="off">
+        <button class="boton boton-primario" type="submit">{{ icono('verificar') }}Verificar</button>
+      </form>
+      <figure class="certificado certificado-ejemplo">
+        <figcaption class="sobretitulo">Ejemplo de certificado</figcaption>
+        <div class="sello">{{ icono('certificado') }}Certificado válido</div>
+        <div class="codigo mono">AV-2026-EJEMPLO</div>
+        <dl class="ficha">
+          <div><dt>Variedad</dt><dd>Gala</dd></div>
+          <div><dt>Manzanas</dt><dd>1.250</dd></div>
+          <div><dt>Buena</dt><dd>82 %</dd></div>
+        </dl>
+        {{ gr.segmentada(segmentos({'buena': 1025, 'detalle': 163, 'no_pasa': 62})) }}
+        <p class="pequeno suave">Datos de ejemplo, no corresponden a un lote real.</p>
+      </figure>
+    </div>
   </div>
 </section>
 {% endblock %}

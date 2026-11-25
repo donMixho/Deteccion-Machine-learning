@@ -19,6 +19,7 @@ ICONOS = {
     "salir": '<path d="M9 21H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3M16 17l5-5-5-5M21 12H9"/>',
     "foto": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
     "video": '<rect x="3" y="5" width="13" height="14" rx="2"/><path d="M16 10l5-3v10l-5-3z"/>',
+    "menu": '<path d="M4 7h16M4 12h16M4 17h16"/>',
     "check": '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "alerta": '<path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/>',

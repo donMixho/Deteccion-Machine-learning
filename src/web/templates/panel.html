@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block cuerpo %}
+<a class="saltar" href="#contenido">Saltar al contenido</a>
 <div class="app">
   <aside class="lateral">
     <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
@@ -24,7 +25,7 @@
       <div class="usuario-sup"><span class="avatar" aria-hidden="true">{{ usuario.nombre[:1] }}</span><span class="nombre">{{ usuario.nombre }}</span></div>
       <form method="post" action="{{ url_for('auth.salir') }}" class="en-linea">{{ m.csrf() }}<button class="boton boton-chico" type="submit">{{ icono('salir') }}Salir</button></form>
     </header>
-    <main class="contenido">
+    <main class="contenido" id="contenido">
       {{ m.avisos() }}
       {% block contenido %}{% endblock %}
     </main>

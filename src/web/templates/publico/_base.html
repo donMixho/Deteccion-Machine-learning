@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block cuerpo %}
+<a class="saltar" href="#contenido">Saltar al contenido</a>
 <header class="sitio-cab">
   <div class="contenedor">
     <a class="marca" href="{{ url_for('publico.inicio') }}"><span class="logo">{{ icono('manzana') }}</span><span>AppleVision<small>Chile</small></span></a>
@@ -8,6 +9,14 @@
       <a class="ocultable" href="{{ url_for('publico.inicio') }}#negocio">Modelo de negocio</a>
       <a class="ocultable" href="{{ url_for('publico.inicio') }}#como-funciona">Cómo funciona</a>
       <a class="ocultable" href="{{ url_for('publico.verificar') }}">Verificar certificado</a>
+      <details class="menu-movil">
+        <summary class="boton boton-fantasma boton-chico" aria-label="Abrir menú">{{ icono('menu') }}</summary>
+        <div class="menu-panel">
+        <a href="{{ url_for('publico.inicio') }}#negocio">Modelo de negocio</a>
+        <a href="{{ url_for('publico.inicio') }}#como-funciona">Cómo funciona</a>
+        <a href="{{ url_for('publico.verificar') }}">Verificar certificado</a>
+        </div>
+      </details>
       <button class="boton boton-fantasma boton-chico" id="cambiar-tema" type="button">{{ icono('tema') }}</button>
       {% if usuario %}
       <a class="boton boton-primario boton-chico" href="{{ url_for({'admin': 'admin.panel', 'jefe_planta': 'planta.panel', 'operador': 'planta.turno', 'productor': 'productor.panel', 'exportador': 'exportador.panel'}[usuario.rol]) }}">Ir a mi panel</a>
@@ -18,11 +27,22 @@
   </div>
 </header>
 <div class="contenedor" style="padding-top: 16px;">{{ m.avisos() }}</div>
+<main id="contenido">
 {% block pagina %}{% endblock %}
+</main>
 <footer class="sitio-pie">
-  <div class="contenedor">
-    <span>AppleVision Chile · Proyecto MLY1101 Machine Learning — DUOC UC</span>
-    <span>YOLO (AGPL-3.0) · Roboflow Universe</span>
+  <div class="contenedor pie-rejilla">
+    <div>
+      <strong class="pie-marca">AppleVision Chile</strong>
+      <span>Proyecto MLY1101 Machine Learning, DUOC UC</span>
+    </div>
+    <nav class="pie-enlaces" aria-label="Enlaces del sitio">
+      <a href="{{ url_for('publico.inicio') }}#negocio">Modelo de negocio</a>
+      <a href="{{ url_for('publico.inicio') }}#como-funciona">Cómo funciona</a>
+      <a href="{{ url_for('publico.verificar') }}">Verificar certificado</a>
+      <a href="{{ url_for('auth.ingresar') }}">Ingresar</a>
+    </nav>
+    <span class="pie-legal">YOLO (AGPL-3.0) · Datos: Roboflow Universe</span>
   </div>
 </footer>
 {% endblock %}

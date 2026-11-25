@@ -35,3 +35,8 @@ Thumbs.db
 mlflow.db
 entrenamiento.log
 runs/
+
+# Llaves SSH y certificados (nunca versionar)
+*.pem
+*.ppk
+*.key
